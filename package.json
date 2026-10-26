@@ -1,0 +1,13 @@
+{
+  "name": "meal-description-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prototype: AI-drafted menu descriptions and wine pairings with two human approval steps.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:mock": "MOCK_AI=1 node scripts/dev.mjs",
+    "test": "node scripts/test.mjs"
+  }
+}
