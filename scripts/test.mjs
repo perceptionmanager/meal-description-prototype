@@ -6,7 +6,7 @@ import { checkDescription, checkPairing, allPass, reportedIngredientsOk } from '
 let n = 0;
 const t = (name, fn) => Promise.resolve().then(fn).then(() => { n++; console.log('  ok  ', name); }, (e) => { console.error('  FAIL', name, '\n', e.message); process.exitCode = 1; });
 const rib = MEALS[0].ingredients;
-const good = 'Braised beef short rib finished in a smoky pepper sauce, served with creamy polenta, crisp haricots verts and sweet piquillo peppers, prepared to arrive warm and welcoming.';
+const good = 'Braised beef short rib in a smoky pepper sauce, served over creamy polenta with crisp haricots verts and sweet piquillo peppers, cooked slowly until tender.';
 const fails = (rows, id) => rows.find((r) => r.id === id && !r.ok);
 
 console.log('checks');
@@ -17,10 +17,24 @@ await t('dietary claims are caught', () => assert.ok(fails(checkDescription(good
 await t('chef and sourcing claims are caught', () => {
   assert.ok(fails(checkDescription(good + ' Chef-crafted and locally sourced.', rib), 'claims'));
 });
+await t('flight and sky wording is caught', () => {
+  for (const bad of ['Enjoy it gently above the clouds.', 'A perfect dish for your journey.', 'Served at your seat in the cabin.']) {
+    assert.ok(fails(checkDescription(good + ' ' + bad, rib), 'tone'), bad);
+  }
+});
+await t('filler phrases are caught', () => {
+  for (const bad of ['A decadent, melt-in-your-mouth finish.', 'Delightfully elevated.']) assert.ok(fails(checkDescription(good + ' ' + bad, rib), 'tone'), bad);
+});
+await t('a plain description is not flagged for tone', () => assert.ok(!fails(checkDescription(good, rib), 'tone')));
+await t('pairing reasons get the same tone check', () => {
+  const w = WINES.find((x) => x.id === 'cab');
+  const r = checkPairing({ wine: w, reasons: ['A perfect match above the clouds.', 'Full body matches the weight of the dish.'], description: good, ingredients: rib });
+  assert.ok(fails(r, 'tone'));
+});
 await t('too short fails the length check', () => assert.ok(fails(checkDescription('Short rib with polenta.', rib), 'length')));
 await t('too long fails the length check', () => assert.ok(fails(checkDescription((good + ' ').repeat(3), rib), 'length')));
 await t('words in the meal name are allowed', () => {
-  const d = 'Fruit and Cheese Plate with sliced apple, cheddar, red grapes and toasted almonds, arranged to share at your seat.';
+  const d = 'Fruit and Cheese Plate with sliced apple, cheddar, red grapes and toasted almonds, arranged for sharing.';
   assert.ok(!allPass(checkDescription(d, ['sliced apple', 'cheddar', 'red grapes', 'toasted almonds'])));
   assert.ok(allPass(checkDescription(d, ['sliced apple', 'cheddar', 'red grapes', 'toasted almonds'], 'Fruit and Cheese Plate')));
 });

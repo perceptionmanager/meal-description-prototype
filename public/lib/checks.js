@@ -38,6 +38,19 @@ const CLAIMS = new RegExp(
   'gi'
 );
 
+// Words that talk about the flight, the sky or the diner, or that pad a description. The prompt
+// forbids them; this catches them on any text, AI or human.
+const TONE = new RegExp(
+  '\\b(' +
+    [
+      'clouds?', 'skies', 'sky', 'altitude', 'aloft', 'flights?', 'flying', 'fly', 'journey', 'travel\\w*', 'onboard', 'on board', 'cabin', 'seat',
+      'above the', 'enjoy\\w*', 'indulg\\w*', 'delight\\w*', 'savou?r\\w*', 'treat yourself', 'your', 'you',
+      'perfect(?:ly)?', 'decadent', 'luxurious', 'exquisite', 'mouth[- ]?watering', 'melt[- ]in[- ]your[- ]mouth', 'symphony', 'elevated', 'welcoming', 'built around',
+    ].join('|') +
+    ')\\b',
+  'gi'
+);
+
 const GRAPES = ['cabernet', 'chardonnay', 'pinot', 'champagne', 'prosecco', 'port', 'riesling', 'merlot', 'sauvignon', 'syrah', 'malbec', 'sparkling', 'brut'];
 
 function tokenSet(list) {
@@ -54,6 +67,10 @@ function unlisted(text, allowedTokens) {
   return [...seen];
 }
 
+function toneIn(text) {
+  return [...new Set((String(text).match(TONE) || []).map((m) => m.toLowerCase()))];
+}
+
 function claimsIn(text) {
   return [...new Set((String(text).match(CLAIMS) || []).map((m) => m.toLowerCase()))];
 }
@@ -66,10 +83,12 @@ export function checkDescription(text, ingredients, name = '') {
   const n = wordCount(text);
   const extra = unlisted(text, tokenSet([...ingredients, name]));
   const claims = claimsIn(text);
+  const tone = toneIn(text);
   return [
     row('length', `${min} to ${max} words`, n >= min && n <= max, `${n} words`),
     row('ingredients', 'Only the listed ingredients', extra.length === 0, extra.length ? `Not in the list: ${extra.join(', ')}` : ''),
     row('claims', 'No dietary, health, sourcing or chef claims', claims.length === 0, claims.length ? `Remove: ${claims.join(', ')}` : ''),
+    row('tone', 'Describes the food only, no flight or filler phrases', tone.length === 0, tone.length ? `Remove: ${tone.join(', ')}` : ''),
   ];
 }
 
@@ -86,11 +105,13 @@ export function checkPairing({ wine, reasons, description, ingredients }) {
   const wrongWine = GRAPES.filter((g) => words(text).includes(g) && !own.has(g));
 
   const claims = claimsIn(text);
+  const tone = toneIn(text);
   return [
     row('reasons', `Two reasons, each up to ${LIMITS.reasonWords} words`, lengthOk, lengthOk ? '' : 'Write two short reasons.'),
     row('grounded', 'Mentions only the dish and this wine', extra.length === 0 && wrongWine.length === 0,
       [extra.length ? `Not in the dish or wine notes: ${extra.join(', ')}` : '', wrongWine.length ? `Names another wine: ${wrongWine.join(', ')}` : ''].filter(Boolean).join('. ')),
     row('claims', 'No dietary, health, sourcing or chef claims', claims.length === 0, claims.length ? `Remove: ${claims.join(', ')}` : ''),
+    row('tone', 'Plain wording, no flight or filler phrases', tone.length === 0, tone.length ? `Remove: ${tone.join(', ')}` : ''),
   ];
 }
 
