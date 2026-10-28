@@ -60,7 +60,7 @@ async function post(payload) {
   const r = await fetch('/api/generate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   let j = null;
   try { j = await r.json(); } catch { /* not JSON */ }
-  if (!r.ok || !j?.ok) throw new Error(j?.message || 'Something went wrong. Try again, or write it yourself.');
+  if (!r.ok || !j?.ok) throw Object.assign(new Error(j?.message || 'Something went wrong. Try again, or write it yourself.'), { draft: j?.draft || '' });
   return j;
 }
 
@@ -252,6 +252,13 @@ async function draft(slot, btn) {
     say(`${slotLabel(slot)} draft ready. Review it and the checks below.`);
     R[slot].desc.focus();
   } catch (e) {
+    if (e.draft) {
+      // The draft failed the checks. Show it so the reviewer can fix it; approval stays locked until it passes.
+      m.aiDescription = e.draft;
+      showDescription(slot, e.draft, 'AI drafted');
+      invalidate(slot);
+      R[slot].desc.focus();
+    }
     showAlert(R[slot].alert, e.message);
   } finally {
     busy(btn, false);

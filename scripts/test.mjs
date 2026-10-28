@@ -34,9 +34,23 @@ await t('pairing reasons get the same tone check', () => {
 await t('too short fails the length check', () => assert.ok(fails(checkDescription('Short rib with polenta.', rib), 'length')));
 await t('too long fails the length check', () => assert.ok(fails(checkDescription((good + ' ').repeat(3), rib), 'length')));
 await t('words in the meal name are allowed', () => {
-  const d = 'Fruit and Cheese Plate with sliced apple, cheddar, red grapes and toasted almonds, arranged for sharing.';
-  assert.ok(!allPass(checkDescription(d, ['sliced apple', 'cheddar', 'red grapes', 'toasted almonds'])));
-  assert.ok(allPass(checkDescription(d, ['sliced apple', 'cheddar', 'red grapes', 'toasted almonds'], 'Fruit and Cheese Plate')));
+  const d = 'Fruit and Cheese Plate with sliced apple, red grapes and toasted almonds, arranged on one board for sharing.';
+  const ing = ['sliced apple', 'red grapes', 'toasted almonds'];
+  assert.ok(fails(checkDescription(d, ing), 'ingredients'));
+  assert.ok(allPass(checkDescription(d, ing, 'Fruit and Cheese Plate')));
+});
+await t('a general word is allowed for a listed kind of it', () => {
+  const ing = ['smoked turkey', 'aged cheddar', 'sourdough bread'];
+  assert.ok(allPass(checkDescription('Smoked turkey and sharp cheese layered on sourdough bread, pressed until the crust is crisp and the filling is warm.', ing)));
+  assert.ok(fails(checkDescription('Smoked turkey and gruyere layered on sourdough bread, pressed until the crust is crisp and the filling is warm.', ing), 'ingredients'));
+});
+await t('common additions the old word list missed are caught', () => {
+  for (const w of ['swiss', 'brie', 'pesto', 'cinnamon', 'prosciutto']) {
+    assert.ok(fails(checkDescription(good.replace('polenta', `polenta and ${w}`), rib), 'ingredients'), w);
+  }
+});
+await t('a listed general word does not allow a specific one', () => {
+  assert.ok(fails(checkDescription('Smoked turkey and cheddar layered on sourdough bread, pressed until the crust is crisp and the filling is warm.', ['smoked turkey', 'cheese', 'sourdough bread']), 'ingredients'));
 });
 await t('editing the ingredient list changes the result', () => {
   assert.ok(fails(checkDescription(good, ['beef short rib', 'creamy polenta']), 'ingredients'));

@@ -187,26 +187,32 @@ const safeParse = (s) => {
 
 async function describe(res, input, mock) {
   const user = `<meal_name>${input.name}</meal_name>\n<ingredients>${input.ingredients.join('; ')}</ingredients>`;
-  let lastWhy = '';
+  let lastDraft = '';
+  let lastProblems = [];
   for (let attempt = 0; attempt < 2; attempt++) {
     const out = mock ? mockDescription(input) : parseJson(await callClaude(DESCRIPTION_SYSTEM, user));
     const description = clean(out?.description, LIMITS.descriptionMax);
     if (!description) {
-      lastWhy = 'empty';
+      lastProblems = ['the model returned no text'];
       continue;
     }
+    lastDraft = description;
     const rows = checkDescription(description, input.ingredients, input.name);
     if (!allPass(rows)) {
-      lastWhy = rows.filter((r) => !r.ok).map((r) => r.id).join(',');
+      lastProblems = rows.filter((r) => !r.ok).map((r) => `${r.label}${r.detail ? ` (${r.detail})` : ''}`);
       continue;
     }
     if (!reportedIngredientsOk(out.ingredients_mentioned, input.ingredients)) {
-      lastWhy = 'reported';
+      lastProblems = ['the model reported using an ingredient that is not in the list'];
       continue;
     }
     return res.status(200).json({ ok: true, description, model: mock ? 'mock' : MODEL });
   }
-  return fail(res, 502, 'failed_checks', `The draft failed the checks twice (${lastWhy}). Try again, or write your own.`);
+  if (lastDraft) {
+    // Hand back the last draft with the reasons, so the reviewer can fix it by hand. The approve button stays locked until the checks pass.
+    return res.status(422).json({ ok: false, error: 'failed_checks', draft: lastDraft, message: `The draft did not pass the checks: ${lastProblems.join('; ')}. It is shown below so you can fix it, or draft again.` });
+  }
+  return fail(res, 502, 'failed_checks', `The model did not return a usable draft (${lastProblems.join('; ')}). Try again, or write your own.`);
 }
 
 async function pair(res, input, mock) {
@@ -230,10 +236,10 @@ async function pair(res, input, mock) {
     }
     const rows = checkPairing({ wine, reasons, description: input.description, ingredients: input.ingredients });
     if (!allPass(rows)) {
-      lastWhy = rows.filter((r) => !r.ok).map((r) => r.id).join(',');
+      lastWhy = rows.filter((r) => !r.ok).map((r) => `${r.label}${r.detail ? ` (${r.detail})` : ''}`).join('; ');
       continue;
     }
     return res.status(200).json({ ok: true, wineId: wine.id, reasons, note: '', model: mock ? 'mock' : MODEL });
   }
-  return fail(res, 502, 'failed_checks', `The pairing failed the checks twice (${lastWhy}). Pick a wine yourself, or try again.`);
+  return fail(res, 502, 'failed_checks', `The pairing did not pass the checks: ${lastWhy || 'the model gave no usable answer'}. Pick a wine yourself, or try again.`);
 }

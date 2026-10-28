@@ -21,7 +21,10 @@ pumpkin zucchini eggplant cauliflower broccoli cabbage beet olive caper lemon li
 strawberry blueberry raspberry blackberry peach fig grape mango coconut almond pistachio walnut pecan hazelnut peanut rice
 pasta noodle bread polenta quinoa couscous chocolate vanilla honey maple sugar basil thyme rosemary tarragon sage parsley
 dill mint cilantro oregano paprika cumin saffron ginger truffle balsamic vinegar mustard mayo soy miso tofu lentil
-chickpea cranberry pineapple avocado artichoke pomegranate caramel espresso coffee`.split(/\s+/);
+chickpea cranberry pineapple avocado artichoke pomegranate caramel espresso coffee
+swiss brie provolone gouda ricotta pecorino havarti cinnamon nutmeg pickle jam syrup mayonnaise ketchup arugula lettuce
+prosciutto salami sourdough baguette croissant tortilla oats granola raisin date prune plum nectarine melon watermelon
+banana kiwi papaya cumin turmeric curry chili jalapeno horseradish wasabi sesame tahini hummus pesto aioli`.split(/\s+/);
 
 const FOOD_SET = new Set(FOOD.flatMap(variants));
 
@@ -53,8 +56,30 @@ const TONE = new RegExp(
 
 const GRAPES = ['cabernet', 'chardonnay', 'pinot', 'champagne', 'prosecco', 'port', 'riesling', 'merlot', 'sauvignon', 'syrah', 'malbec', 'sparkling', 'brut'];
 
+// A general word is fine when a listed ingredient is a kind of it ("cheese" for cheddar).
+// The reverse is not: a listed "cheese" does not allow "cheddar".
+const KIND_OF = {
+  cheese: ['cheddar', 'parmesan', 'gruyere', 'mozzarella', 'feta', 'mascarpone', 'swiss', 'brie', 'provolone', 'gouda', 'ricotta', 'pecorino', 'havarti'],
+  fish: ['salmon', 'tuna', 'cod', 'trout'],
+  shellfish: ['shrimp', 'crab', 'lobster', 'scallop'],
+  berry: ['strawberry', 'blueberry', 'raspberry', 'blackberry', 'cranberry'],
+  nut: ['almond', 'pistachio', 'walnut', 'pecan', 'hazelnut', 'peanut'],
+  herb: ['basil', 'thyme', 'rosemary', 'tarragon', 'sage', 'parsley', 'dill', 'mint', 'cilantro', 'oregano', 'chive'],
+};
+const GENERAL = new Map();
+for (const [general, kinds] of Object.entries(KIND_OF)) for (const k of kinds) GENERAL.set(k, [...(GENERAL.get(k) || []), general]);
+
 function tokenSet(list) {
-  return new Set(list.flatMap((item) => words(item).flatMap(variants)));
+  const out = new Set();
+  for (const item of list) {
+    for (const w of words(item)) {
+      for (const v of variants(w)) {
+        out.add(v);
+        for (const g of GENERAL.get(v) || []) variants(g).forEach((x) => out.add(x));
+      }
+    }
+  }
+  return out;
 }
 
 function unlisted(text, allowedTokens) {
