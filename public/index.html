@@ -39,7 +39,7 @@
     <p class="mp-lede">AI drafts the description and the wine pairing. A person approves each one before anything reaches a menu. The meals and wines are fictional.</p>
 
     <ol class="mp-progress" id="progress" aria-label="Review steps">
-      <li><button type="button" class="mp-progress__item" data-step="1"><span class="mp-progress__num" aria-hidden="true">1</span><span><span class="mp-progress__name">Review description</span><span class="mp-progress__role">Menu reviewer</span></span></button></li>
+      <li><button type="button" class="mp-progress__item" data-step="1"><span class="mp-progress__num" aria-hidden="true">1</span><span><span class="mp-progress__name">Review descriptions</span><span class="mp-progress__role">Menu reviewer</span></span></button></li>
       <li><button type="button" class="mp-progress__item" data-step="2"><span class="mp-progress__num" aria-hidden="true">2</span><span><span class="mp-progress__name">Choose pairing</span><span class="mp-progress__role">Menu owner</span></span></button></li>
       <li><button type="button" class="mp-progress__item" data-step="3"><span class="mp-progress__num" aria-hidden="true">3</span><span><span class="mp-progress__name">Published menu</span><span class="mp-progress__role">Read only</span></span></button></li>
     </ol>
@@ -49,62 +49,76 @@
     <!-- Step 1 -->
     <section class="pm-card pm-card--accent-primary mp-panel" id="panel-1" aria-labelledby="h-1">
       <header class="mp-panel__head">
-        <h2 id="h-1" class="mp-h2" tabindex="-1">1. Review the description</h2>
-        <span class="pm-pill">Menu reviewer</span>
+        <h2 id="h-1" class="mp-h2" tabindex="-1">1. Review the descriptions</h2>
+        <span class="pm-pill" id="reviewer-pill"></span>
       </header>
 
-      <fieldset class="mp-fieldset">
-        <legend class="mp-label">Meal</legend>
-        <div class="mp-choices" id="meal-choices"></div>
-      </fieldset>
-
-      <div class="mp-field">
-        <label class="mp-label" for="meal-name">Meal name</label>
-        <input class="mp-input" id="meal-name" type="text" maxlength="60" autocomplete="off">
-      </div>
-      <div class="mp-field">
-        <label class="mp-label" for="ingredients">Ingredients</label>
-        <textarea class="mp-input mp-textarea" id="ingredients" rows="5" maxlength="600" aria-describedby="ingredients-hint"></textarea>
-        <p class="mp-hint" id="ingredients-hint">One per line. The draft may use these and nothing else.</p>
-      </div>
-
-      <div class="mp-actions">
-        <button type="button" class="pm-btn pm-btn--primary" id="draft"><svg class="pm-icon" aria-hidden="true"><use href="#pm-icon-sparkle"/></svg><span>Draft with AI</span></button>
-        <button type="button" class="pm-btn pm-btn--ghost" id="own">Write it myself</button>
+      <p class="mp-small mp-muted">Choose a meal for each course, or enter your own. The AI may only use the ingredients in the table.</p>
+      <div class="mp-tablewrap">
+        <table class="mp-table" id="meal-table">
+          <caption class="mp-sr">Meals on this service</caption>
+          <thead>
+            <tr><th scope="col">Course</th><th scope="col">Meal</th><th scope="col">Ingredients</th><th scope="col">Wine pairing</th></tr>
+          </thead>
+          <tbody id="meal-rows"></tbody>
+        </table>
       </div>
       <div class="mp-alert" id="alert-1" role="alert" hidden></div>
 
-      <div id="desc-block" hidden>
-        <div class="mp-field">
-          <div class="mp-labelrow">
-            <label class="mp-label" for="description">Customer-facing description</label>
-            <span class="pm-tag" id="desc-source"></span>
-          </div>
-          <textarea class="mp-input mp-textarea" id="description" rows="4" maxlength="400" aria-describedby="desc-checks"></textarea>
-        </div>
-        <ul class="mp-checks" id="desc-checks" aria-label="Checks on this description"></ul>
-        <details class="mp-details">
-          <summary>What the AI read</summary>
-          <p class="mp-small">The meal name and ingredient list above, plus the rules: elevated and welcoming, 22 to 38 words, only these ingredients, no dietary, health or sourcing claims. Nothing else.</p>
-        </details>
-        <div class="mp-actions">
-          <button type="button" class="pm-btn pm-btn--primary" id="approve-1" disabled>Approve and send to menu owner</button>
-          <button type="button" class="pm-btn pm-btn--ghost" id="regen">Draft again</button>
-          <button type="button" class="pm-btn pm-btn--tertiary" id="reject">Reject draft</button>
-        </div>
+      <div class="mp-reviews" id="reviews"></div>
+
+      <div class="mp-actions">
+        <button type="button" class="pm-btn pm-btn--primary" id="continue" disabled>Send to menu owner</button>
+        <p class="mp-small mp-muted" id="continue-hint">Approve both descriptions to continue.</p>
       </div>
     </section>
+
+    <template id="tpl-review">
+      <section class="pm-card mp-review">
+        <header class="mp-panel__head">
+          <div>
+            <h3 class="mp-h3" data-role="title"></h3>
+            <p class="mp-menu__name" data-role="mealname"></p>
+          </div>
+          <span class="pm-pill" data-role="status">Not reviewed</span>
+        </header>
+        <div class="mp-actions">
+          <button type="button" class="pm-btn pm-btn--primary" data-role="draft"><svg class="pm-icon" aria-hidden="true"><use href="#pm-icon-sparkle"/></svg><span>Draft with AI</span></button>
+          <button type="button" class="pm-btn pm-btn--ghost" data-role="own">Write it myself</button>
+        </div>
+        <div class="mp-alert" role="alert" data-role="alert" hidden></div>
+        <div class="mp-review__block" data-role="block" hidden>
+          <div class="mp-field">
+            <div class="mp-labelrow">
+              <label class="mp-label" data-role="desc-label">Customer-facing description</label>
+              <span class="pm-tag" data-role="source"></span>
+            </div>
+            <textarea class="mp-input mp-textarea" rows="5" maxlength="400" data-role="desc"></textarea>
+          </div>
+          <ul class="mp-checks" data-role="checks" aria-label="Checks on this description"></ul>
+          <details class="mp-details">
+            <summary>What the AI read</summary>
+            <p class="mp-small">The meal name and ingredient list in the table, plus the rules: elevated and welcoming, 22 to 38 words, only these ingredients, no dietary, health or sourcing claims. Nothing else.</p>
+          </details>
+          <div class="mp-actions">
+            <button type="button" class="pm-btn pm-btn--primary" data-role="approve" disabled>Approve description</button>
+            <button type="button" class="pm-btn pm-btn--ghost" data-role="regen">Draft again</button>
+            <button type="button" class="pm-btn pm-btn--tertiary" data-role="reject">Reject draft</button>
+          </div>
+        </div>
+      </section>
+    </template>
 
     <!-- Step 2 -->
     <section class="pm-card pm-card--accent-primary mp-panel" id="panel-2" aria-labelledby="h-2" hidden>
       <header class="mp-panel__head">
         <h2 id="h-2" class="mp-h2" tabindex="-1">2. Choose the pairing</h2>
-        <span class="pm-pill">Menu owner</span>
+        <span class="pm-pill" id="owner-pill"></span>
       </header>
 
       <div class="mp-two">
         <div>
-          <p class="mp-label">Approved description</p>
+          <p class="mp-label">Approved description, main course</p>
           <div class="mp-quote">
             <p class="mp-quote__name" id="s2-name"></p>
             <p id="s2-desc"></p>
@@ -116,6 +130,8 @@
           <ul class="mp-wines" id="wine-list"></ul>
         </div>
       </div>
+
+      <p class="mp-note" id="s2-second"></p>
 
       <div class="mp-actions">
         <button type="button" class="pm-btn pm-btn--primary" id="suggest"><svg class="pm-icon" aria-hidden="true"><use href="#pm-icon-sparkle"/></svg><span>Suggest a pairing</span></button>
@@ -158,23 +174,12 @@
     <section class="mp-panel" id="panel-3" aria-labelledby="h-3" hidden>
       <header class="mp-panel__head">
         <h2 id="h-3" class="mp-h2" tabindex="-1">3. Published menu</h2>
-        <span class="pm-tag"><svg class="pm-icon" aria-hidden="true"><use href="#pm-icon-sparkle"/></svg> AI drafted, approved by people</span>
       </header>
-      <p class="mp-small mp-muted" id="provenance"></p>
-
-      <div class="mp-outputs">
-        <div>
-          <h3 class="mp-h3">Digital menu</h3>
-          <div class="pm-card mp-menu" id="out-menu"></div>
-        </div>
-        <div>
-          <h3 class="mp-h3">Pre-select</h3>
-          <div class="pm-card mp-select-card" id="out-select"></div>
-        </div>
-      </div>
+      <div class="pm-card mp-menu" id="out-menu"></div>
+      <ul class="mp-small mp-muted mp-prov" id="provenance" aria-label="Who approved what"></ul>
 
       <details class="mp-details">
-        <summary>What the AI read for this meal</summary>
+        <summary>What the AI read for this menu</summary>
         <div id="out-read"></div>
       </details>
       <div class="mp-actions">

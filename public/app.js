@@ -1,4 +1,4 @@
-import { MEALS, WINES } from './lib/data.js';
+import { MEALS, WINES, SLOTS, PEOPLE } from './lib/data.js';
 import { checkDescription, checkPairing, allPass } from './lib/checks.js';
 
 const $ = (id) => document.getElementById(id);
@@ -14,38 +14,37 @@ const el = (tag, props = {}, ...kids) => {
   return n;
 };
 
-const blank = () => ({
-  step: 1,
-  mealId: MEALS[0].id,
-  name: MEALS[0].name,
-  course: MEALS[0].course,
-  ingredientsText: MEALS[0].ingredients.join('\n'),
-  description: '',
-  aiDescription: '',
-  descSource: '',
-  pair: { wineId: 'none', reasons: ['', ''], note: '', source: '', ai: null, shown: false },
-  approved: { 1: null, 2: null },
-});
+const SLOT_IDS = SLOTS.map((s) => s.id);
+const slotLabel = (slot) => SLOTS.find((s) => s.id === slot).label;
+const presets = (slot) => MEALS.filter((m) => m.slot === slot);
+
+// ---------- state ----------
+const mealBlank = (slot) => {
+  const m = presets(slot)[0];
+  return { mealId: m.id, name: m.name, ingredientsText: m.ingredients.join('\n'), description: '', aiDescription: '', descSource: '', approved: null };
+};
+const pairBlank = () => ({ wineId: 'none', reasons: ['', ''], note: '', source: '', ai: null, shown: false, approved: null });
+const blank = () => ({ step: 1, meals: { main: mealBlank('main'), second: mealBlank('second') }, pair: pairBlank() });
 let S = blank();
+const R = {}; // review card elements, by slot
 
 // ---------- helpers ----------
-const ingredients = () => {
-  const t = S.ingredientsText.trim();
+const ingredients = (slot) => {
+  const t = S.meals[slot].ingredientsText.trim();
   const parts = /[\n;]/.test(t) ? t.split(/[\n;]+/) : t.split(',');
   return parts.map((p) => p.trim()).filter(Boolean);
 };
 const wineById = (id) => WINES.find((w) => w.id === id) || null;
 const when = (d) => d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 const say = (msg) => { $('status').textContent = ''; setTimeout(() => { $('status').textContent = msg; }, 30); };
+const bothApproved = () => SLOT_IDS.every((s) => S.meals[s].approved);
 
-function showAlert(id, msg) {
-  const a = $(id);
-  a.textContent = msg || '';
-  a.hidden = !msg;
+function showAlert(node, msg) {
+  node.textContent = msg || '';
+  node.hidden = !msg;
 }
 
-function renderChecks(listId, rows) {
-  const ul = $(listId);
+function renderChecks(ul, rows) {
   ul.replaceChildren(
     ...rows.map((r) =>
       el('li', { 'data-ok': String(r.ok) },
@@ -78,19 +77,26 @@ function busy(btn, on, label) {
 }
 
 // ---------- steps ----------
-function reachable(n) { return n === 1 || (n === 2 && S.approved[1]) || (n === 3 && S.approved[2]); }
+const stepDone = (n) => (n === 1 ? bothApproved() : n === 2 ? Boolean(S.pair.approved) : false);
+const reachable = (n) => n === 1 || (n === 2 && bothApproved()) || (n === 3 && bothApproved() && Boolean(S.pair.approved));
+
+function paintNav() {
+  document.querySelectorAll('.mp-progress__item').forEach((b) => {
+    const i = Number(b.dataset.step);
+    b.disabled = !reachable(i);
+    if (i === S.step) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+    b.dataset.done = String(stepDone(i));
+  });
+  $('continue').disabled = !bothApproved();
+  $('continue-hint').hidden = bothApproved();
+}
 
 function setStep(n, focus = true) {
   S.step = n;
   for (const i of [1, 2, 3]) $(`panel-${i}`).hidden = i !== n;
-  document.querySelectorAll('.mp-progress__item').forEach((b) => {
-    const i = Number(b.dataset.step);
-    b.disabled = !reachable(i);
-    if (i === n) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
-    b.dataset.done = String(Boolean(S.approved[i]));
-  });
   if (n === 2) renderStep2();
   if (n === 3) renderStep3();
+  paintNav();
   if (focus) {
     const h = $(`h-${n}`);
     h.focus({ preventScroll: true });
@@ -98,120 +104,206 @@ function setStep(n, focus = true) {
   }
 }
 
-function invalidate(from) {
-  if (!S.approved[from] && !S.approved[2]) return;
-  if (from <= 1) { S.approved[1] = null; S.pair = { wineId: 'none', reasons: ['', ''], note: '', source: '', ai: null, shown: false }; }
-  S.approved[2] = null;
-  say('Approval cleared because the text changed. Approve it again to continue.');
-  setStep(S.step, false);
+// Called whenever the text a reviewer approved has changed.
+function invalidate(slot) {
+  const m = S.meals[slot];
+  const had = Boolean(m.approved) || (slot === 'main' && (S.pair.approved || S.pair.shown));
+  m.approved = null;
+  if (slot === 'main') S.pair = pairBlank();
+  if (had) say('Approval cleared because the text changed. Approve it again to continue.');
+  paintStatus(slot);
+  updateDescription(slot);
+  paintNav();
 }
 
-// ---------- step 1 ----------
-function renderMeals() {
-  const box = $('meal-choices');
-  const items = [...MEALS.map((m) => ({ id: m.id, name: m.name, meta: m.course })), { id: 'custom', name: 'Enter your own', meta: 'Type a meal and ingredients' }];
-  box.replaceChildren(...items.map((m) =>
-    el('label', { class: 'mp-choice' },
-      el('input', { type: 'radio', name: 'meal', value: m.id, checked: m.id === S.mealId }),
-      el('span', { class: 'mp-choice__body' }, el('span', { class: 'mp-choice__name', text: m.name }), el('span', { class: 'mp-choice__meta', text: m.meta })))
-  ));
+// ---------- step 1: meal table ----------
+function renderTable() {
+  const rows = SLOTS.map((slot) => {
+    const m = S.meals[slot.id];
+    const custom = m.mealId === 'custom';
+    const sel = el('select', { class: 'mp-input mp-select', 'data-slot': slot.id, 'data-field': 'meal', 'aria-label': `${slot.label}: meal` },
+      ...presets(slot.id).map((p) => el('option', { value: p.id, text: p.name, selected: m.mealId === p.id })),
+      el('option', { value: 'custom', text: 'Enter your own…', selected: custom }));
+    const name = custom
+      ? el('input', { class: 'mp-input', type: 'text', maxlength: '60', autocomplete: 'off', value: m.name, 'data-slot': slot.id, 'data-field': 'name', 'aria-label': `${slot.label}: meal name`, placeholder: 'Meal name' })
+      : null;
+    const ing = el('textarea', { class: 'mp-input mp-textarea', rows: '5', maxlength: '600', 'data-slot': slot.id, 'data-field': 'ingredients', 'aria-label': `${slot.label}: ingredients, one per line` });
+    ing.value = m.ingredientsText;
+    return el('tr', { 'data-slot': slot.id },
+      el('th', { scope: 'row', 'data-label': 'Course', text: slot.label }),
+      el('td', { 'data-label': 'Meal' }, el('div', { class: 'mp-stack' }, sel, name)),
+      el('td', { 'data-label': 'Ingredients' }, ing, el('p', { class: 'mp-hint', text: 'One per line' })),
+      el('td', { 'data-label': 'Wine pairing' }, el('span', { class: 'pm-tag', text: slot.pairing ? 'Menu owner chooses' : 'None for this course' })));
+  });
+  $('meal-rows').replaceChildren(...rows);
 }
 
-function bindMeals() {
-  $('meal-choices').addEventListener('change', (e) => {
-    if (e.target.name !== 'meal') return;
-    S.mealId = e.target.value;
-    const m = MEALS.find((x) => x.id === S.mealId);
-    if (m) { S.name = m.name; S.course = m.course; S.ingredientsText = m.ingredients.join('\n'); }
-    else { S.name = ''; S.course = 'Main course'; S.ingredientsText = ''; }
-    $('meal-name').value = S.name;
-    $('ingredients').value = S.ingredientsText;
-    resetDescription();
-    invalidate(1);
-    showAlert('alert-1', '');
-    if (!m) $('meal-name').focus();
+function bindTable() {
+  const body = $('meal-rows');
+  body.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.dataset.field !== 'meal') return;
+    const slot = t.dataset.slot;
+    const m = S.meals[slot];
+    const p = MEALS.find((x) => x.id === t.value);
+    m.mealId = t.value;
+    m.name = p ? p.name : '';
+    m.ingredientsText = p ? p.ingredients.join('\n') : '';
+    resetDescription(slot);
+    invalidate(slot);
+    showAlert(R[slot].alert, '');
+    renderTable();
+    paintMealNames();
+    if (!p) body.querySelector(`[data-slot="${slot}"][data-field="name"]`)?.focus();
+    else body.querySelector(`[data-slot="${slot}"][data-field="meal"]`)?.focus();
+  });
+  body.addEventListener('input', (e) => {
+    const t = e.target;
+    const slot = t.dataset.slot;
+    if (!slot) return;
+    const m = S.meals[slot];
+    if (t.dataset.field === 'name') m.name = t.value;
+    else if (t.dataset.field === 'ingredients') m.ingredientsText = t.value;
+    else return;
+    paintMealNames();
+    invalidate(slot);
   });
 }
 
-function resetDescription() {
-  S.description = ''; S.aiDescription = ''; S.descSource = '';
-  $('description').value = '';
-  $('desc-block').hidden = true;
+function paintMealNames() {
+  for (const slot of SLOT_IDS) R[slot].mealname.textContent = S.meals[slot].name || 'No meal name yet';
 }
 
-function showDescription(text, source) {
-  S.description = text; S.descSource = source;
-  $('description').value = text;
-  $('desc-block').hidden = false;
-  updateDescription();
+// ---------- step 1: review cards ----------
+function buildCards() {
+  const tpl = $('tpl-review');
+  const out = SLOTS.map((slot) => {
+    const node = tpl.content.firstElementChild.cloneNode(true);
+    const q = (r) => node.querySelector(`[data-role="${r}"]`);
+    const r = { root: node };
+    for (const k of ['title', 'mealname', 'status', 'draft', 'own', 'alert', 'block', 'desc-label', 'source', 'desc', 'checks', 'approve', 'regen', 'reject']) r[k] = q(k);
+    r.descLabel = r['desc-label'];
+    node.setAttribute('aria-labelledby', `rt-${slot.id}`);
+    r.title.id = `rt-${slot.id}`;
+    r.title.textContent = slot.label;
+    r.desc.id = `rd-${slot.id}`;
+    r.descLabel.htmlFor = r.desc.id;
+    r.desc.setAttribute('aria-describedby', `rc-${slot.id}`);
+    r.checks.id = `rc-${slot.id}`;
+    R[slot.id] = r;
+    bindCard(slot.id);
+    return node;
+  });
+  $('reviews').replaceChildren(...out);
+  paintMealNames();
 }
 
-function updateDescription() {
-  $('desc-source').textContent = S.descSource;
-  const rows = checkDescription(S.description, ingredients());
-  renderChecks('desc-checks', rows);
+function resetDescription(slot) {
+  const m = S.meals[slot];
+  m.description = ''; m.aiDescription = ''; m.descSource = '';
+  R[slot].desc.value = '';
+  R[slot].block.hidden = true;
+}
+
+function showDescription(slot, text, source) {
+  const m = S.meals[slot];
+  m.description = text; m.descSource = source;
+  R[slot].desc.value = text;
+  R[slot].block.hidden = false;
+  updateDescription(slot);
+}
+
+function updateDescription(slot) {
+  const m = S.meals[slot];
+  const r = R[slot];
+  r.source.textContent = m.descSource;
+  if (r.block.hidden) return;
+  const rows = checkDescription(m.description, ingredients(slot), m.name);
+  renderChecks(r.checks, rows);
   const ok = allPass(rows);
-  $('description').setAttribute('aria-invalid', String(!ok && S.description.length > 0));
-  $('approve-1').disabled = !ok;
+  r.desc.setAttribute('aria-invalid', String(!ok && m.description.length > 0));
+  r.approve.disabled = !ok || Boolean(m.approved);
+  r.approve.textContent = m.approved ? 'Approved' : 'Approve description';
 }
 
-function validInputs() {
-  if (!S.name.trim() || ingredients().length === 0) {
-    showAlert('alert-1', 'Add a meal name and at least one ingredient first.');
+function paintStatus(slot) {
+  const m = S.meals[slot];
+  R[slot].status.textContent = m.approved ? `Approved by ${PEOPLE.reviewer}` : m.description ? 'Awaiting approval' : 'Not reviewed';
+}
+
+function validInputs(slot) {
+  if (!S.meals[slot].name.trim() || ingredients(slot).length === 0) {
+    showAlert(R[slot].alert, 'Add a meal name and at least one ingredient in the table first.');
     return false;
   }
-  showAlert('alert-1', '');
+  showAlert(R[slot].alert, '');
   return true;
 }
 
-async function draft(btn) {
-  if (!validInputs()) return;
+async function draft(slot, btn) {
+  if (!validInputs(slot)) return;
+  const m = S.meals[slot];
   busy(btn, true, 'Drafting…');
   try {
-    const j = await post({ task: 'description', name: S.name.trim(), ingredients: ingredients() });
-    S.aiDescription = j.description;
-    showDescription(j.description, 'AI drafted');
-    invalidate(1);
-    say('Draft ready. Review it and the checks below.');
-    $('description').focus();
+    const j = await post({ task: 'description', name: m.name.trim(), ingredients: ingredients(slot) });
+    m.aiDescription = j.description;
+    showDescription(slot, j.description, 'AI drafted');
+    invalidate(slot);
+    say(`${slotLabel(slot)} draft ready. Review it and the checks below.`);
+    R[slot].desc.focus();
   } catch (e) {
-    showAlert('alert-1', e.message);
+    showAlert(R[slot].alert, e.message);
   } finally {
     busy(btn, false);
   }
 }
 
+function bindCard(slot) {
+  const r = R[slot];
+  const m = () => S.meals[slot];
+  r.draft.addEventListener('click', (e) => draft(slot, e.currentTarget));
+  r.regen.addEventListener('click', (e) => draft(slot, e.currentTarget));
+  r.own.addEventListener('click', () => {
+    if (!validInputs(slot)) return;
+    showDescription(slot, '', 'Written by reviewer');
+    invalidate(slot);
+    r.desc.focus();
+  });
+  r.desc.addEventListener('input', (e) => {
+    m().description = e.target.value;
+    if (m().aiDescription) m().descSource = m().description.trim() === m().aiDescription ? 'AI drafted' : 'AI drafted, edited by reviewer';
+    invalidate(slot);
+  });
+  r.reject.addEventListener('click', () => {
+    resetDescription(slot);
+    invalidate(slot);
+    say('Draft rejected and discarded.');
+    r.draft.focus();
+  });
+  r.approve.addEventListener('click', () => {
+    m().approved = { at: new Date(), source: m().descSource, text: m().description };
+    paintStatus(slot);
+    updateDescription(slot);
+    paintNav();
+    say(bothApproved() ? 'Both descriptions approved. You can send them to the menu owner.' : `${slotLabel(slot)} description approved.`);
+    if (bothApproved()) $('continue').focus();
+  });
+}
+
 function bindStep1() {
-  $('meal-name').value = S.name;
-  $('ingredients').value = S.ingredientsText;
-  $('meal-name').addEventListener('input', (e) => { S.name = e.target.value; invalidate(1); if (S.description) updateDescription(); });
-  $('ingredients').addEventListener('input', (e) => { S.ingredientsText = e.target.value; invalidate(1); if (S.description) updateDescription(); });
-  $('draft').addEventListener('click', (e) => draft(e.currentTarget));
-  $('regen').addEventListener('click', (e) => draft(e.currentTarget));
-  $('own').addEventListener('click', () => {
-    if (!validInputs()) return;
-    showDescription('', 'Written by reviewer');
-    $('description').focus();
-  });
-  $('description').addEventListener('input', (e) => {
-    S.description = e.target.value;
-    if (S.aiDescription) S.descSource = S.description.trim() === S.aiDescription ? 'AI drafted' : 'AI drafted, edited by reviewer';
-    invalidate(1);
-    updateDescription();
-  });
-  $('reject').addEventListener('click', () => { resetDescription(); invalidate(1); say('Draft rejected and discarded.'); $('draft').focus(); });
-  $('approve-1').addEventListener('click', () => {
-    S.approved[1] = { at: new Date(), source: S.descSource, text: S.description };
+  $('continue').addEventListener('click', () => {
     setStep(2);
-    say('Description approved. Now choose a pairing.');
+    say('Descriptions approved. Now choose a pairing for the main course.');
   });
 }
 
 // ---------- step 2 ----------
 function renderStep2() {
-  $('s2-name').textContent = S.name;
-  $('s2-desc').textContent = S.approved[1]?.text || S.description;
-  $('s2-by').textContent = S.approved[1] ? `Approved by the menu reviewer, ${when(S.approved[1].at)}. ${S.approved[1].source}.` : '';
+  const m = S.meals.main;
+  $('s2-name').textContent = m.name;
+  $('s2-desc').textContent = m.approved?.text || m.description;
+  $('s2-by').textContent = m.approved ? `Approved by ${PEOPLE.reviewer}, ${when(m.approved.at)}. ${m.approved.source}.` : '';
+  $('s2-second').textContent = `Second meal: ${S.meals.second.name} goes out without a wine pairing.`;
   renderWines();
   const sel = $('pair-select');
   sel.replaceChildren(el('option', { value: 'none', text: 'No pairing' }), ...WINES.map((w) => el('option', { value: w.id, text: `${w.name} (${w.style})` })));
@@ -237,8 +329,8 @@ function updatePair() {
   const note = $('pair-note');
   note.textContent = !wine && S.pair.note ? S.pair.note : '';
   note.hidden = !(!wine && S.pair.note);
-  const rows = checkPairing({ wine, reasons: S.pair.reasons, description: S.approved[1]?.text || S.description, ingredients: ingredients() });
-  renderChecks('pair-checks', rows);
+  const rows = checkPairing({ wine, reasons: S.pair.reasons, description: S.meals.main.approved?.text || S.meals.main.description, ingredients: ingredients('main') });
+  renderChecks($('pair-checks'), rows);
   $('approve-2').disabled = !allPass(rows);
   renderWines();
 }
@@ -246,15 +338,16 @@ function updatePair() {
 function showPair() { S.pair.shown = true; $('pair-block').hidden = false; updatePair(); }
 
 async function suggest(btn) {
+  const m = S.meals.main;
   busy(btn, true, 'Thinking…');
   try {
-    const j = await post({ task: 'pairing', name: S.name.trim(), ingredients: ingredients(), description: S.approved[1].text });
+    const j = await post({ task: 'pairing', name: m.name.trim(), ingredients: ingredients('main'), description: m.approved.text });
     S.pair.ai = { wineId: j.wineId || 'none', reasons: j.reasons, note: j.note };
     S.pair.wineId = j.wineId || 'none';
     S.pair.reasons = [j.reasons[0] || '', j.reasons[1] || ''];
     S.pair.note = j.note || '';
     S.pair.source = 'AI suggested';
-    showAlert('alert-2', '');
+    showAlert($('alert-2'), '');
     $('pair-select').value = S.pair.wineId;
     $('reason-1').value = S.pair.reasons[0];
     $('reason-2').value = S.pair.reasons[1];
@@ -262,7 +355,7 @@ async function suggest(btn) {
     say(j.wineId ? 'Pairing suggested. Review it before approving.' : 'The AI found no good match on this list. You can still pick a wine yourself.');
     $('pair-select').focus();
   } catch (e) {
-    showAlert('alert-2', e.message);
+    showAlert($('alert-2'), e.message);
   } finally {
     busy(btn, false);
   }
@@ -273,15 +366,17 @@ function markPairEdited() {
     const same = S.pair.wineId === S.pair.ai.wineId && S.pair.reasons.every((r, i) => r.trim() === (S.pair.ai.reasons[i] || ''));
     S.pair.source = same ? 'AI suggested' : 'AI suggested, edited by menu owner';
   } else S.pair.source = 'Chosen by menu owner';
-  S.approved[2] = null;
+  S.pair.approved = null;
+  paintNav();
 }
 
 function bindStep2() {
   $('suggest').addEventListener('click', (e) => suggest(e.currentTarget));
   $('manual-pair').addEventListener('click', () => {
-    S.pair = { wineId: 'none', reasons: ['', ''], note: '', source: 'Chosen by menu owner', ai: null, shown: true };
-    showAlert('alert-2', '');
+    S.pair = { ...pairBlank(), source: 'Chosen by menu owner', shown: true };
+    showAlert($('alert-2'), '');
     renderStep2();
+    paintNav();
     $('pair-select').focus();
   });
   $('pair-select').addEventListener('change', (e) => { S.pair.wineId = e.target.value; S.pair.note = ''; markPairEdited(); updatePair(); });
@@ -289,7 +384,7 @@ function bindStep2() {
     $(id).addEventListener('input', (e) => { S.pair.reasons[i] = e.target.value; markPairEdited(); updatePair(); });
   }
   $('approve-2').addEventListener('click', () => {
-    S.approved[2] = { at: new Date(), source: S.pair.source || 'Chosen by menu owner' };
+    S.pair.approved = { at: new Date(), source: S.pair.source || 'Chosen by menu owner' };
     setStep(3);
     say('Menu published.');
   });
@@ -297,43 +392,66 @@ function bindStep2() {
 }
 
 // ---------- step 3 ----------
+const isAi = (s) => String(s).startsWith('AI');
+
 function renderStep3() {
   const wine = wineById(S.pair.wineId);
-  const desc = S.approved[1].text;
-  $('provenance').textContent = `Description: ${S.approved[1].source}, approved by the menu reviewer ${when(S.approved[1].at)}. Pairing: ${wine ? S.approved[2].source : 'none selected'}, approved by the menu owner ${when(S.approved[2].at)}.`;
+  const main = S.meals.main;
+  const second = S.meals.second;
+
+  const tagFor = (slot) => {
+    if (slot === 'main') {
+      const names = `${PEOPLE.reviewer} and ${PEOPLE.owner}`;
+      return isAi(main.approved.source) || (wine && isAi(S.pair.approved.source)) ? `AI drafted, approved by ${names}` : `Written and approved by ${names}`;
+    }
+    return isAi(second.approved.source) ? `AI drafted, approved by ${PEOPLE.reviewer}` : `Written and approved by ${PEOPLE.reviewer}`;
+  };
+
+  const section = (slot, m, pairLine) =>
+    el('section', { class: 'mp-menu__section', 'aria-labelledby': `mc-${slot}` },
+      el('h3', { class: 'mp-menu__course', id: `mc-${slot}`, text: slotLabel(slot) }),
+      el('p', { class: 'mp-menu__name', text: m.name }),
+      el('p', { text: m.approved.text }),
+      pairLine ? el('p', { class: 'mp-menu__pair', text: pairLine }) : null,
+      el('span', { class: 'pm-tag mp-menu__tag' }, svgIcon('sparkle'), ` ${tagFor(slot)}`));
 
   $('out-menu').replaceChildren(
-    el('p', { class: 'mp-menu__course', text: S.course }),
-    el('p', { class: 'mp-menu__choice', text: 'Choice of' }),
-    el('p', { class: 'mp-menu__name', text: S.name }),
-    el('p', { text: desc }),
-    wine ? el('p', { class: 'mp-menu__pair', text: `Pairs with ${wine.name}.` }) : null
+    section('main', main, wine ? `Pairs with ${wine.name}.` : null),
+    section('second', second, null)
   );
 
-  $('out-select').replaceChildren(
-    el('div', { class: 'mp-select-card__row' },
-      el('span', { class: 'mp-radio', 'aria-hidden': 'true' }),
-      el('div', {},
-        el('p', { class: 'mp-menu__name', text: S.name }),
-        el('p', { text: desc }),
-        wine ? el('p', { class: 'mp-select-card__pair', text: `Pairs well with ${wine.name}.` }) : null,
-        wine ? el('details', {}, el('summary', { text: 'Why?' }), el('ul', {}, S.pair.reasons.map((r) => el('li', { text: r })))) : null))
+  $('provenance').replaceChildren(
+    el('li', { text: `Main course description: ${main.approved.source}, approved by ${PEOPLE.reviewer} (menu reviewer), ${when(main.approved.at)}.` }),
+    el('li', { text: `Main course pairing: ${wine ? S.pair.approved.source : 'none selected'}, approved by ${PEOPLE.owner} (menu owner), ${when(S.pair.approved.at)}.` }),
+    el('li', { text: `Second meal description: ${second.approved.source}, approved by ${PEOPLE.reviewer} (menu reviewer), ${when(second.approved.at)}. No wine pairing for this course.` })
   );
 
   $('out-read').replaceChildren(
-    el('p', { class: 'mp-small' }, el('strong', { text: 'Ingredients: ' }), document.createTextNode(ingredients().join(', '))),
-    wine ? el('p', { class: 'mp-small' }, el('strong', { text: `${wine.name}: ` }), document.createTextNode(wine.notes)) : el('p', { class: 'mp-small', text: 'No wine was paired.' })
+    el('p', { class: 'mp-small' }, el('strong', { text: `${main.name}, ingredients: ` }), document.createTextNode(ingredients('main').join(', '))),
+    el('p', { class: 'mp-small' }, el('strong', { text: `${second.name}, ingredients: ` }), document.createTextNode(ingredients('second').join(', '))),
+    wine ? el('p', { class: 'mp-small' }, el('strong', { text: `${wine.name}: ` }), document.createTextNode(wine.notes)) : el('p', { class: 'mp-small', text: 'No wine was paired.' }),
+    wine ? el('p', { class: 'mp-small' }, el('strong', { text: 'Why this pairing: ' }), document.createTextNode(S.pair.reasons.join(' '))) : null
   );
+}
+
+function svgIcon(name) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('class', 'pm-icon');
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS(ns, 'use');
+  use.setAttribute('href', `#pm-icon-${name}`);
+  svg.append(use);
+  return svg;
 }
 
 function bindStep3() {
   $('restart').addEventListener('click', () => {
     S = blank();
-    $('meal-name').value = S.name;
-    $('ingredients').value = S.ingredientsText;
-    renderMeals();
-    resetDescription();
-    showAlert('alert-1', ''); showAlert('alert-2', '');
+    renderTable();
+    for (const slot of SLOT_IDS) { resetDescription(slot); showAlert(R[slot].alert, ''); paintStatus(slot); }
+    paintMealNames();
+    showAlert($('alert-2'), '');
     setStep(1);
     say('Started over.');
   });
@@ -342,6 +460,8 @@ function bindStep3() {
 
 // ---------- shell ----------
 function bindShell() {
+  $('reviewer-pill').textContent = `Menu reviewer: ${PEOPLE.reviewer}`;
+  $('owner-pill').textContent = `Menu owner: ${PEOPLE.owner}`;
   document.querySelectorAll('.mp-progress__item').forEach((b) => b.addEventListener('click', () => {
     const n = Number(b.dataset.step);
     if (reachable(n)) setStep(n);
@@ -368,11 +488,13 @@ async function loadIcons() {
   } catch { /* icons are decorative */ }
 }
 
-renderMeals();
-bindMeals();
+buildCards();
+renderTable();
+bindTable();
 bindShell();
 bindStep1();
 bindStep2();
 bindStep3();
+for (const slot of SLOT_IDS) paintStatus(slot);
 setStep(1, false);
 loadIcons();

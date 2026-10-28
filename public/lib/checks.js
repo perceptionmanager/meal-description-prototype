@@ -60,10 +60,11 @@ function claimsIn(text) {
 
 const row = (id, label, ok, detail = '') => ({ id, label, ok, detail });
 
-export function checkDescription(text, ingredients) {
+// The meal name is the dish's own title, so words in it are allowed even when no ingredient repeats them.
+export function checkDescription(text, ingredients, name = '') {
   const [min, max] = LIMITS.descriptionWords;
   const n = wordCount(text);
-  const extra = unlisted(text, tokenSet(ingredients));
+  const extra = unlisted(text, tokenSet([...ingredients, name]));
   const claims = claimsIn(text);
   return [
     row('length', `${min} to ${max} words`, n >= min && n <= max, `${n} words`),

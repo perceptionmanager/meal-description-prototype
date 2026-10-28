@@ -1,6 +1,6 @@
 // node scripts/test.mjs  — checks and API handler (mock mode). No network, no API key.
 import assert from 'node:assert/strict';
-import { MEALS, WINES } from '../public/lib/data.js';
+import { MEALS, WINES, SLOTS } from '../public/lib/data.js';
 import { checkDescription, checkPairing, allPass, reportedIngredientsOk } from '../public/lib/checks.js';
 
 let n = 0;
@@ -19,6 +19,11 @@ await t('chef and sourcing claims are caught', () => {
 });
 await t('too short fails the length check', () => assert.ok(fails(checkDescription('Short rib with polenta.', rib), 'length')));
 await t('too long fails the length check', () => assert.ok(fails(checkDescription((good + ' ').repeat(3), rib), 'length')));
+await t('words in the meal name are allowed', () => {
+  const d = 'Fruit and Cheese Plate with sliced apple, cheddar, red grapes and toasted almonds, arranged to share at your seat.';
+  assert.ok(!allPass(checkDescription(d, ['sliced apple', 'cheddar', 'red grapes', 'toasted almonds'])));
+  assert.ok(allPass(checkDescription(d, ['sliced apple', 'cheddar', 'red grapes', 'toasted almonds'], 'Fruit and Cheese Plate')));
+});
 await t('editing the ingredient list changes the result', () => {
   assert.ok(fails(checkDescription(good, ['beef short rib', 'creamy polenta']), 'ingredients'));
 });
@@ -36,6 +41,14 @@ await t('reported ingredients must match the input', () => {
   assert.ok(!reportedIngredientsOk(['quince jam'], rib));
 });
 
+console.log('data');
+await t('each slot has meals to choose from', () => {
+  for (const sl of SLOTS) assert.ok(MEALS.filter((m) => m.slot === sl.id).length >= 2, sl.id);
+});
+await t('only the main course takes a wine', () => {
+  assert.deepEqual(SLOTS.filter((x) => x.pairing).map((x) => x.id), ['main']);
+});
+
 console.log('api (mock)');
 process.env.MOCK_AI = '1';
 process.env.RATE_LIMIT_PER_IP = '1000';
@@ -49,11 +62,11 @@ for (const m of MEALS) {
   await t(`description for ${m.name} passes its own checks`, async () => {
     const r = await call({ task: 'description', name: m.name, ingredients: m.ingredients });
     assert.equal(r.code, 200, JSON.stringify(r.body));
-    assert.ok(allPass(checkDescription(r.body.description, m.ingredients)));
+    assert.ok(allPass(checkDescription(r.body.description, m.ingredients, m.name)));
   });
 }
-const expectWine = { 'short-rib': 'cab', chicken: 'chard', salmon: 'chard', tart: 'port', risotto: null };
-for (const m of MEALS) {
+const expectWine = { 'short-rib': 'cab', chicken: 'chard', salmon: 'chard', risotto: null, tart: 'port' };
+for (const m of MEALS.filter((x) => x.id in expectWine)) {
   await t(`pairing for ${m.name} -> ${expectWine[m.id]}`, async () => {
     const d = (await call({ task: 'description', name: m.name, ingredients: m.ingredients })).body.description;
     const r = await call({ task: 'pairing', name: m.name, ingredients: m.ingredients, description: d });

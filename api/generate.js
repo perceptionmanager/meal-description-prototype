@@ -190,7 +190,7 @@ async function describe(res, input, mock) {
       lastWhy = 'empty';
       continue;
     }
-    const rows = checkDescription(description, input.ingredients);
+    const rows = checkDescription(description, input.ingredients, input.name);
     if (!allPass(rows)) {
       lastWhy = rows.filter((r) => !r.ok).map((r) => r.id).join(',');
       continue;

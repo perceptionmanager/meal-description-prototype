@@ -2,11 +2,13 @@
 
 A prototype of a two-step human review for AI-written menu copy.
 
-1. **Review the description.** AI drafts a customer-facing description from a meal name and ingredient list. The reviewer edits, redrafts, rejects, or writes their own. Approval is the first gate.
-2. **Choose the pairing.** AI suggests a wine from a fixed wine list, with two reasons, or says none fits. The menu owner edits, picks another wine, or chooses none. Approval is the second gate.
-3. **Published menu.** A digital menu card and a pre-select card with expandable "Why?" reasons.
+The service has two courses: a **main course**, which can take a wine pairing, and a **second meal**, which never does.
 
-All meals and wines are fictional. The prototype is not connected to any airline or menu system.
+1. **Review the descriptions.** A table holds the meal data for both courses (meal, ingredients, whether a wine applies). For each course, AI drafts a customer-facing description from the meal name and ingredients. The reviewer edits, redrafts, rejects, or writes their own. Approving both descriptions is the first gate.
+2. **Choose the pairing.** For the main course only, AI suggests a wine from a fixed wine list, with two reasons, or says none fits. The menu owner edits, picks another wine, or chooses none. Approval is the second gate.
+3. **Published menu.** One digital menu card with both courses. Each course carries a label naming who approved it. The pairing reasons are under "What the AI read".
+
+All meals, wines and people (Jordan Ellis, Priya Raman) are fictional. The prototype is not connected to any airline or menu system.
 
 ## Run it locally
 
@@ -47,7 +49,7 @@ Without Upstash, counts live in one serverless instance's memory. That slows cas
 ## Design system
 
 `public/ds/` holds vendored copies of the design system's `tokens.css`, `components.css` and `icons.svg`. Update them by copying from the design system's `dist/`; do not edit them here.
-Form styles (`.mp-input`, `.mp-textarea`, `.mp-select`, `.mp-choice`, `.mp-checks`) are local in `public/styles.css` and use only semantic tokens, so they can be promoted into the design system later.
+Buttons, cards, pills, tags and icons come from the design system. These are local because the design system has no equivalent yet: text input, textarea, select (`.mp-input`, `.mp-textarea`, `.mp-select`), table (`.mp-table`), alert and note, check list (`.mp-checks`), details, and the step progress bar. They are local in `public/styles.css` and use only semantic tokens, so they can be promoted into the design system later.
 
 ## Deploy
 
