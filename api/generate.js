@@ -89,17 +89,23 @@ async function callClaude(system, user) {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({ model: MODEL, max_tokens: 400, system, messages: [{ role: 'user', content: user }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: 2000, system, messages: [{ role: 'user', content: user }] }),
     });
     if (!r.ok) throw new Error(`upstream ${r.status}`);
     const j = await r.json();
-    return (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    const text = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    if (!text.trim()) {
+      // Shows up in Vercel's function logs. Never sent to the browser.
+      console.error('model returned no text', JSON.stringify({ model: MODEL, stop_reason: j.stop_reason, blocks: (j.content || []).map((b) => b.type), usage: j.usage }));
+    }
+    return text;
   } finally {
     clearTimeout(timer);
   }
 }
 
 function parseJson(text) {
+  if (text && !text.includes('{')) console.error('model reply had no JSON', JSON.stringify(text.slice(0, 200)));
   const a = text.indexOf('{');
   const b = text.lastIndexOf('}');
   if (a < 0 || b < a) return null;
