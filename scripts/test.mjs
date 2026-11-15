@@ -25,6 +25,10 @@ await t('flight and sky wording is caught', () => {
 await t('filler phrases are caught', () => {
   for (const bad of ['A decadent, melt-in-your-mouth finish.', 'Delightfully elevated.']) assert.ok(fails(checkDescription(good + ' ' + bad, rib), 'tone'), bad);
 });
+await t('"savory" is a food word, "savor" is not', () => {
+  assert.ok(!fails(checkDescription(good + ' A savory, salty edge.', rib), 'tone'));
+  assert.ok(fails(checkDescription(good + ' Savor each bite.', rib), 'tone'));
+});
 await t('a plain description is not flagged for tone', () => assert.ok(!fails(checkDescription(good, rib), 'tone')));
 await t('pairing reasons get the same tone check', () => {
   const w = WINES.find((x) => x.id === 'cab');

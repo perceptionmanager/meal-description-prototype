@@ -47,7 +47,7 @@ const TONE = new RegExp(
   '\\b(' +
     [
       'clouds?', 'skies', 'sky', 'altitude', 'aloft', 'flights?', 'flying', 'fly', 'journey', 'travel\\w*', 'onboard', 'on board', 'cabin', 'seat',
-      'above the', 'enjoy\\w*', 'indulg\\w*', 'delight\\w*', 'savou?r\\w*', 'treat yourself', 'your', 'you',
+      'above the', 'enjoy\\w*', 'indulg\\w*', 'delight\\w*', 'savou?r(?:s|ed|ing)?', 'treat yourself', 'your', 'you',
       'perfect(?:ly)?', 'decadent', 'luxurious', 'exquisite', 'mouth[- ]?watering', 'melt[- ]in[- ]your[- ]mouth', 'symphony', 'elevated', 'welcoming', 'built around',
     ].join('|') +
     ')\\b',
