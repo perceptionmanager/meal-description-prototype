@@ -4,7 +4,7 @@ A prototype of a two-step human review for AI-written menu copy.
 
 The service has two courses: a **main course**, which can take a wine pairing, and a **second meal**, which never does.
 
-1. **Review the descriptions.** A table holds the meal data for both courses (meal, ingredients, whether a wine applies). For each course, AI drafts a customer-facing description from the meal name and ingredients. The reviewer edits, redrafts, rejects, or writes their own. Approving both descriptions is the first gate.
+1. **Review the descriptions.** A table holds the meal data for both courses (meal and its ingredients, which are read-only). Each row has its own "Draft with AI" and "Write it myself" buttons. The description opens in a collapsible pane under the row, where the reviewer edits, redrafts, or rejects it. Ticking the row's Approved box approves it; the box stays disabled until the text passes the checks. Approving both descriptions is the first gate.
 2. **Choose the pairing.** For the main course only, AI suggests a wine from a fixed wine list, with two reasons, or says none fits. The menu owner edits, picks another wine, or chooses none. Approval is the second gate.
 3. **Published menu.** One digital menu card with both courses. Each course carries a label naming who approved it. The pairing reasons are under "What the AI read".
 
@@ -36,7 +36,7 @@ Without Upstash, counts live in one serverless instance's memory. That slows cas
 ## How it limits what the AI can say
 
 - The wine list lives on the server. The browser never sends one.
-- Deterministic checks run on every description and pairing, AI-written or human-edited: word count, only the listed ingredients, no dietary/health/sourcing/chef claims, no wine outside the list. The approve buttons stay disabled until they pass.
+- Deterministic checks run on every description and pairing, AI-written or human-edited: word count, only the listed ingredients, no dietary/health/sourcing/chef claims, no wine outside the list. The approve controls stay disabled until they pass. Passing checks are not listed; only what still needs fixing is shown.
 - On the AI path the model must also report which ingredients it used, and the server verifies them against the input. A draft that fails is retried once, then returned as an error.
 - Input is length-capped and stripped of angle brackets. Model output is rendered as text only.
 

@@ -163,8 +163,24 @@ ul, ol { padding: 0; list-style: none; }
 /* ---- pairing step spacing ---- */
 #pair-block, #reasons-block { display: grid; gap: var(--pm-space-4); }
 
-/* Row actions in the meal table. A review card stays out of the way until it has a draft or a message. */
+/* Row actions in the meal table. */
 .mp-rowacts { display: grid; gap: var(--pm-space-2); min-width: 9.5rem; }
-.mp-coursetag { justify-self: start; font-weight: var(--pm-font-weight-regular, 400); white-space: nowrap; }
 .mp-rowacts .pm-btn { width: 100%; justify-content: center; }
-.mp-review:not(:has([data-role="block"]:not([hidden]), [data-role="alert"]:not([hidden]))) { display: none; }
+.pm-btn[aria-busy="true"] { white-space: nowrap; overflow: hidden; justify-content: center; }
+[data-role="regen"], #suggest { min-width: 11rem; justify-content: center; }
+.mp-coursetag { justify-self: start; font-weight: var(--pm-font-weight-regular, 400); white-space: nowrap; }
+.mp-inglist { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--pm-space-1); color: var(--pm-color-text-secondary); }
+.mp-table td:nth-child(3) { min-width: 9rem; }
+.mp-checklabel { display: inline-flex; align-items: center; gap: var(--pm-space-2); min-height: 44px; cursor: pointer; }
+.mp-check { width: 1.25rem; height: 1.25rem; accent-color: var(--pm-color-accent-primary, currentColor); cursor: pointer; }
+.mp-check:disabled, .mp-checklabel:has(.mp-check:disabled) { cursor: not-allowed; color: var(--pm-color-text-tertiary); }
+
+/* The description pane sits in its own row under the course and stays out of the way until it has a draft or a message. */
+.mp-table tbody tr.mp-detailrow > td { border-top: 0; padding-top: 0; }
+.mp-detailrow:not(:has([data-role="block"]:not([hidden]), [data-role="alert"]:not([hidden]))) { display: none; }
+.mp-rowpane { border: 1px solid var(--pm-color-border-subtle); border-radius: var(--pm-radius-md); background: var(--pm-color-surface-base, transparent); }
+.mp-rowpane > summary { display: flex; flex-wrap: wrap; gap: var(--pm-space-3); align-items: center; padding: var(--pm-space-3) var(--pm-space-4); cursor: pointer; font-weight: var(--pm-font-weight-semibold); min-height: 44px; }
+.mp-rowpane__status { font-weight: var(--pm-font-weight-regular, 400); color: var(--pm-color-text-secondary); }
+.mp-rowpane .mp-review { display: grid; gap: var(--pm-space-4); padding: 0 var(--pm-space-4) var(--pm-space-4); }
+.mp-checks li { display: block; padding-left: var(--pm-space-3); border-left: 3px solid var(--pm-color-status-warning); }
+@media (max-width: 760px) { .mp-table td:not([data-label])::before { display: none; } .mp-table tbody tr.mp-detailrow { padding-top: 0; } }

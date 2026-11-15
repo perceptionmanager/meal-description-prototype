@@ -44,16 +44,11 @@ function showAlert(node, msg) {
   node.hidden = !msg;
 }
 
+// Only what still needs fixing is listed. Passing checks stay silent; approval is still locked until all pass.
 function renderChecks(ul, rows) {
-  ul.replaceChildren(
-    ...rows.map((r) =>
-      el('li', { 'data-ok': String(r.ok) },
-        el('span', { class: 'mp-checks__mark', 'aria-hidden': 'true', text: r.ok ? '✓' : '!' }),
-        el('span', {},
-          el('span', { text: `${r.label}${r.ok ? '' : ' (needs attention)'}` }),
-          r.detail ? el('span', { class: 'mp-checks__detail', text: r.detail }) : null))
-    )
-  );
+  const bad = rows.filter((r) => !r.ok);
+  ul.hidden = bad.length === 0;
+  ul.replaceChildren(...bad.map((r) => el('li', { text: r.detail ? `${r.label}. ${r.detail}` : r.label })));
 }
 
 async function post(payload) {
@@ -74,6 +69,7 @@ function busy(btn, on, labels) {
   clearInterval(btn._busyTimer);
   if (on) {
     const list = [].concat(labels);
+    btn.style.width = `${btn.offsetWidth}px`; // hold the width while the words change
     btn.dataset.html = btn.innerHTML;
     // The changing word is decoration; screen readers get one steady label.
     const word = el('span', { 'aria-hidden': 'true', text: list[0] });
@@ -81,8 +77,9 @@ function busy(btn, on, labels) {
     let n = 0;
     btn._busyTimer = setInterval(() => { n = (n + 1) % list.length; word.textContent = list[n]; }, 1100);
   } else if (btn.dataset.html) {
-    btn.innerHTML = btn.dataset.html; // static markup from index.html, not user text
+    btn.innerHTML = btn.dataset.html; // the button's own earlier markup, not user text
     delete btn.dataset.html;
+    btn.style.width = '';
   }
 }
 
@@ -115,110 +112,109 @@ function setStep(n, focus = true) {
 }
 
 // Called whenever the text a reviewer approved has changed.
-function invalidate(slot) {
+function invalidate(slot, msg = 'Approval cleared because the text changed. Approve it again to continue.') {
   const m = S.meals[slot];
   const had = Boolean(m.approved) || (slot === 'main' && (S.pair.approved || S.pair.shown));
   m.approved = null;
   if (slot === 'main') S.pair = pairBlank();
-  if (had) say('Approval cleared because the text changed. Approve it again to continue.');
+  if (had) say(msg);
   paintStatus(slot);
   updateDescription(slot);
   paintNav();
 }
 
 // ---------- step 1: meal table ----------
+// Each course takes two rows: the meal with its actions, then a collapsible pane that holds the description.
+const canApprove = (slot) => {
+  const m = S.meals[slot];
+  return Boolean(m.description.trim()) && allPass(checkDescription(m.description, ingredients(slot), m.name));
+};
+
 function renderTable() {
-  const rows = SLOTS.map((slot) => {
+  const rows = SLOTS.flatMap((slot) => {
     const m = S.meals[slot.id];
-    const custom = m.mealId === 'custom';
     const sel = el('select', { class: 'mp-input mp-select', 'data-slot': slot.id, 'data-field': 'meal', 'aria-label': `${slot.label}: meal` },
-      ...presets(slot.id).map((p) => el('option', { value: p.id, text: p.name, selected: m.mealId === p.id })),
-      el('option', { value: 'custom', text: 'Enter your own…', selected: custom }));
-    const name = custom
-      ? el('input', { class: 'mp-input', type: 'text', maxlength: '60', autocomplete: 'off', value: m.name, 'data-slot': slot.id, 'data-field': 'name', 'aria-label': `${slot.label}: meal name`, placeholder: 'Meal name' })
-      : null;
-    const ing = el('textarea', { class: 'mp-input mp-textarea', rows: '5', maxlength: '600', 'data-slot': slot.id, 'data-field': 'ingredients', 'aria-label': `${slot.label}: ingredients, one per line` });
-    ing.value = m.ingredientsText;
-    return el('tr', { 'data-slot': slot.id },
-      el('th', { scope: 'row', 'data-label': 'Course' }, el('div', { class: 'mp-stack' }, el('span', { text: slot.label }), el('span', { class: 'pm-tag mp-coursetag', text: slot.pairing ? 'Wine: menu owner chooses' : 'No wine pairing' }))),
-      el('td', { 'data-label': 'Meal' }, el('div', { class: 'mp-stack' }, sel, name)),
-      el('td', { 'data-label': 'Ingredients' }, ing, el('p', { class: 'mp-hint', text: 'One per line' })),
-      el('td', { 'data-label': 'Description' }, el('div', { class: 'mp-rowacts' },
-        el('button', { type: 'button', class: 'pm-btn pm-btn--primary', 'data-slot': slot.id, 'data-act': 'draft', 'aria-label': `${slot.label}: draft with AI`, text: 'Draft with AI' }),
-        el('button', { type: 'button', class: 'pm-btn pm-btn--ghost', 'data-slot': slot.id, 'data-act': 'own', 'aria-label': `${slot.label}: write it myself`, text: 'Write it myself' }))));
+      ...presets(slot.id).map((p) => el('option', { value: p.id, text: p.name, selected: m.mealId === p.id })));
+    const box = el('input', { type: 'checkbox', class: 'mp-check', id: `ap-${slot.id}`, 'data-slot': slot.id, 'data-act': 'approve', 'aria-label': `${slot.label}: description approved` });
+    return [
+      el('tr', { 'data-slot': slot.id },
+        el('th', { scope: 'row', 'data-label': 'Course' }, el('div', { class: 'mp-stack' }, el('span', { text: slot.label }), el('span', { class: 'pm-tag mp-coursetag', text: slot.pairing ? 'Wine: menu owner chooses' : 'No wine pairing' }))),
+        el('td', { 'data-label': 'Meal' }, sel),
+        el('td', { 'data-label': 'Ingredients' }, el('ul', { class: 'mp-inglist' }, ...ingredients(slot.id).map((i) => el('li', { text: i })))),
+        el('td', { 'data-label': 'Description' }, el('div', { class: 'mp-rowacts' },
+          el('button', { type: 'button', class: 'pm-btn pm-btn--primary', 'data-slot': slot.id, 'data-act': 'draft', 'aria-label': `${slot.label}: draft with AI`, text: 'Draft with AI' }),
+          el('button', { type: 'button', class: 'pm-btn pm-btn--ghost', 'data-slot': slot.id, 'data-act': 'own', 'aria-label': `${slot.label}: write it myself`, text: 'Write it myself' }))),
+        el('td', { 'data-label': 'Approved' }, el('label', { class: 'mp-checklabel' }, box, el('span', { 'aria-hidden': 'true', text: 'Approved' })))),
+      el('tr', { class: 'mp-detailrow' }, el('td', { colspan: '5' }, R[slot.id].pane)),
+    ];
   });
   $('meal-rows').replaceChildren(...rows);
+  for (const slot of SLOT_IDS) paintStatus(slot);
 }
 
 function bindTable() {
   const body = $('meal-rows');
   body.addEventListener('change', (e) => {
     const t = e.target;
-    if (t.dataset.field !== 'meal') return;
     const slot = t.dataset.slot;
+    if (!slot) return;
     const m = S.meals[slot];
+    if (t.dataset.act === 'approve') {
+      if (t.checked && canApprove(slot)) {
+        m.approved = { at: new Date(), source: m.descSource, text: m.description };
+        paintStatus(slot);
+        paintNav();
+        say(bothApproved() ? 'Both descriptions approved. You can send them to the menu owner.' : `${slotLabel(slot)} description approved.`);
+      } else {
+        invalidate(slot, 'Approval removed.');
+      }
+      return;
+    }
+    if (t.dataset.field !== 'meal') return;
     const p = MEALS.find((x) => x.id === t.value);
-    m.mealId = t.value;
-    m.name = p ? p.name : '';
-    m.ingredientsText = p ? p.ingredients.join('\n') : '';
+    m.mealId = p.id;
+    m.name = p.name;
+    m.ingredientsText = p.ingredients.join('\n');
     resetDescription(slot);
     invalidate(slot);
     showAlert(R[slot].alert, '');
     renderTable();
-    paintMealNames();
-    if (!p) body.querySelector(`[data-slot="${slot}"][data-field="name"]`)?.focus();
-    else body.querySelector(`[data-slot="${slot}"][data-field="meal"]`)?.focus();
+    body.querySelector(`[data-slot="${slot}"][data-field="meal"]`)?.focus();
   });
   body.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-act]');
+    const btn = e.target.closest('button[data-act]');
     if (!btn) return;
     const slot = btn.dataset.slot;
     if (btn.dataset.act === 'draft') draft(slot, btn);
-    else if (validInputs(slot)) {
+    else {
+      showAlert(R[slot].alert, '');
       showDescription(slot, '', 'Written by reviewer');
       invalidate(slot);
       R[slot].desc.focus();
     }
   });
-  body.addEventListener('input', (e) => {
-    const t = e.target;
-    const slot = t.dataset.slot;
-    if (!slot) return;
-    const m = S.meals[slot];
-    if (t.dataset.field === 'name') m.name = t.value;
-    else if (t.dataset.field === 'ingredients') m.ingredientsText = t.value;
-    else return;
-    paintMealNames();
-    invalidate(slot);
-  });
 }
 
-function paintMealNames() {
-  for (const slot of SLOT_IDS) R[slot].mealname.textContent = S.meals[slot].name || 'No meal name yet';
-}
-
-// ---------- step 1: review cards ----------
+// ---------- step 1: description panes ----------
 function buildCards() {
   const tpl = $('tpl-review');
-  const out = SLOTS.map((slot) => {
+  for (const slot of SLOTS) {
     const node = tpl.content.firstElementChild.cloneNode(true);
     const q = (r) => node.querySelector(`[data-role="${r}"]`);
     const r = { root: node };
-    for (const k of ['title', 'mealname', 'status', 'alert', 'block', 'desc-label', 'source', 'desc', 'checks', 'approve', 'regen', 'reject']) r[k] = q(k);
+    for (const k of ['alert', 'block', 'desc-label', 'source', 'desc', 'checks', 'regen', 'reject']) r[k] = q(k);
     r.descLabel = r['desc-label'];
-    node.setAttribute('aria-labelledby', `rt-${slot.id}`);
-    r.title.id = `rt-${slot.id}`;
-    r.title.textContent = slot.label;
     r.desc.id = `rd-${slot.id}`;
     r.descLabel.htmlFor = r.desc.id;
     r.desc.setAttribute('aria-describedby', `rc-${slot.id}`);
     r.checks.id = `rc-${slot.id}`;
+    r.status = el('span', { class: 'mp-rowpane__status' });
+    r.pane = el('details', { class: 'mp-rowpane', open: true },
+      el('summary', {}, el('span', { text: `${slot.label} description` }), r.status),
+      node);
     R[slot.id] = r;
     bindCard(slot.id);
-    return node;
-  });
-  $('reviews').replaceChildren(...out);
-  paintMealNames();
+  }
 }
 
 function resetDescription(slot) {
@@ -233,6 +229,7 @@ function showDescription(slot, text, source) {
   m.description = text; m.descSource = source;
   R[slot].desc.value = text;
   R[slot].block.hidden = false;
+  R[slot].pane.open = true;
   updateDescription(slot);
 }
 
@@ -240,39 +237,34 @@ function updateDescription(slot) {
   const m = S.meals[slot];
   const r = R[slot];
   r.source.textContent = m.descSource;
-  if (r.block.hidden) return;
-  const rows = checkDescription(m.description, ingredients(slot), m.name);
-  renderChecks(r.checks, rows);
-  const ok = allPass(rows);
-  r.desc.setAttribute('aria-invalid', String(!ok && m.description.length > 0));
-  r.approve.disabled = !ok || Boolean(m.approved);
-  r.approve.textContent = m.approved ? 'Approved' : 'Approve description';
+  if (!r.block.hidden) {
+    const rows = checkDescription(m.description, ingredients(slot), m.name);
+    renderChecks(r.checks, m.description.trim() ? rows : []);
+    r.desc.setAttribute('aria-invalid', String(!allPass(rows) && m.description.length > 0));
+  }
+  paintStatus(slot);
 }
 
+// The row's checkbox and the pane's summary both show where the description stands.
 function paintStatus(slot) {
   const m = S.meals[slot];
-  R[slot].status.textContent = m.approved ? `Approved by ${PEOPLE.reviewer}` : m.description ? 'Awaiting approval' : 'Not reviewed';
-}
-
-function validInputs(slot) {
-  if (!S.meals[slot].name.trim() || ingredients(slot).length === 0) {
-    showAlert(R[slot].alert, 'Add a meal name and at least one ingredient in the table first.');
-    return false;
-  }
-  showAlert(R[slot].alert, '');
-  return true;
+  R[slot].status.textContent = m.approved ? `Approved by ${PEOPLE.reviewer}` : m.description ? 'Awaiting approval' : '';
+  const box = $(`ap-${slot}`);
+  if (!box) return;
+  box.checked = Boolean(m.approved);
+  box.disabled = !m.approved && !canApprove(slot);
 }
 
 async function draft(slot, btn) {
-  if (!validInputs(slot)) return;
   const m = S.meals[slot];
+  showAlert(R[slot].alert, '');
   busy(btn, true, COOKING);
   try {
     const j = await post({ task: 'description', name: m.name.trim(), ingredients: ingredients(slot) });
     m.aiDescription = j.description;
     showDescription(slot, j.description, 'AI drafted');
     invalidate(slot);
-    say(`${slotLabel(slot)} draft ready. Review it and the checks below.`);
+    say(`${slotLabel(slot)} draft ready. You can edit it before approving.`);
     R[slot].desc.focus();
   } catch (e) {
     if (e.draft) {
@@ -282,6 +274,7 @@ async function draft(slot, btn) {
       invalidate(slot);
       R[slot].desc.focus();
     }
+    R[slot].pane.open = true;
     showAlert(R[slot].alert, e.message);
   } finally {
     busy(btn, false);
@@ -302,14 +295,6 @@ function bindCard(slot) {
     invalidate(slot);
     say('Draft rejected and discarded.');
     $('meal-rows').querySelector(`[data-slot="${slot}"][data-act="draft"]`)?.focus();
-  });
-  r.approve.addEventListener('click', () => {
-    m().approved = { at: new Date(), source: m().descSource, text: m().description };
-    paintStatus(slot);
-    updateDescription(slot);
-    paintNav();
-    say(bothApproved() ? 'Both descriptions approved. You can send them to the menu owner.' : `${slotLabel(slot)} description approved.`);
-    if (bothApproved()) $('continue').focus();
   });
 }
 
@@ -471,9 +456,8 @@ function svgIcon(name) {
 function bindStep3() {
   $('restart').addEventListener('click', () => {
     S = blank();
+    for (const slot of SLOT_IDS) { resetDescription(slot); showAlert(R[slot].alert, ''); }
     renderTable();
-    for (const slot of SLOT_IDS) { resetDescription(slot); showAlert(R[slot].alert, ''); paintStatus(slot); }
-    paintMealNames();
     showAlert($('alert-2'), '');
     setStep(1);
     say('Started over.');

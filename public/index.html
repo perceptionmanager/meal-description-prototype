@@ -53,19 +53,17 @@
         <span class="pm-pill" id="reviewer-pill"></span>
       </header>
 
-      <p class="mp-small mp-muted">Choose a meal for each course, or enter your own, then draft its description from the same row. The AI may only use the ingredients in the table.</p>
+      <p class="mp-small mp-muted">Choose a meal for each course and draft its description from the same row. The draft opens under the row, where you can edit it. Tick Approved when it is ready. The AI may only use the ingredients listed.</p>
       <div class="mp-tablewrap">
         <table class="mp-table" id="meal-table">
           <caption class="mp-sr">Meals on this service</caption>
           <thead>
-            <tr><th scope="col">Course</th><th scope="col">Meal</th><th scope="col">Ingredients</th><th scope="col">Description</th></tr>
+            <tr><th scope="col">Course</th><th scope="col">Meal</th><th scope="col">Ingredients</th><th scope="col">Description</th><th scope="col">Approved</th></tr>
           </thead>
           <tbody id="meal-rows"></tbody>
         </table>
       </div>
       <div class="mp-alert" id="alert-1" role="alert" hidden></div>
-
-      <div class="mp-reviews" id="reviews"></div>
 
       <div class="mp-actions">
         <button type="button" class="pm-btn pm-btn--primary" id="continue" disabled>Send to menu owner</button>
@@ -74,35 +72,27 @@
     </section>
 
     <template id="tpl-review">
-      <section class="pm-card mp-review">
-        <header class="mp-panel__head">
-          <div>
-            <h3 class="mp-h3" data-role="title"></h3>
-            <p class="mp-menu__name" data-role="mealname"></p>
-          </div>
-          <span class="pm-pill" data-role="status">Not reviewed</span>
-        </header>
+      <div class="mp-review">
         <div class="mp-alert" role="alert" data-role="alert" hidden></div>
         <div class="mp-review__block" data-role="block" hidden>
           <div class="mp-field">
             <div class="mp-labelrow">
-              <label class="mp-label" data-role="desc-label">Customer-facing description</label>
+              <label class="mp-label" data-role="desc-label">Customer-facing description (you can edit it)</label>
               <span class="pm-tag" data-role="source"></span>
             </div>
-            <textarea class="mp-input mp-textarea" rows="5" maxlength="400" data-role="desc"></textarea>
+            <textarea class="mp-input mp-textarea" rows="4" maxlength="400" data-role="desc"></textarea>
           </div>
-          <ul class="mp-checks" data-role="checks" aria-label="Checks on this description"></ul>
+          <ul class="mp-checks" data-role="checks" aria-label="Fix before approving" hidden></ul>
           <details class="mp-details">
             <summary>What the AI read</summary>
             <p class="mp-small">The meal name and ingredient list in the table, plus the rules: plain restaurant-menu wording, 22 to 38 words, only these ingredients, nothing about flying or where the meal is eaten, no dietary, health or sourcing claims. Nothing else.</p>
           </details>
           <div class="mp-actions">
-            <button type="button" class="pm-btn pm-btn--primary" data-role="approve" disabled>Approve description</button>
             <button type="button" class="pm-btn pm-btn--ghost" data-role="regen">Draft again</button>
             <button type="button" class="pm-btn pm-btn--tertiary" data-role="reject">Reject draft</button>
           </div>
         </div>
-      </section>
+      </div>
     </template>
 
     <!-- Step 2 -->
@@ -154,7 +144,7 @@
             <input class="mp-input" id="reason-2" type="text" maxlength="200" autocomplete="off">
           </div>
         </div>
-        <ul class="mp-checks" id="pair-checks" aria-label="Checks on this pairing"></ul>
+        <ul class="mp-checks" id="pair-checks" aria-label="Fix before approving" hidden></ul>
         <details class="mp-details">
           <summary>What the AI read</summary>
           <p class="mp-small">The approved description, the ingredient list and the wine list with tasting notes. It may only choose a wine from this list, or say none fits.</p>
