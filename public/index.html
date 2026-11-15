@@ -53,12 +53,12 @@
         <span class="pm-pill" id="reviewer-pill"></span>
       </header>
 
-      <p class="mp-small mp-muted">Choose a meal for each course, or enter your own. The AI may only use the ingredients in the table.</p>
+      <p class="mp-small mp-muted">Choose a meal for each course, or enter your own, then draft its description from the same row. The AI may only use the ingredients in the table.</p>
       <div class="mp-tablewrap">
         <table class="mp-table" id="meal-table">
           <caption class="mp-sr">Meals on this service</caption>
           <thead>
-            <tr><th scope="col">Course</th><th scope="col">Meal</th><th scope="col">Ingredients</th><th scope="col">Wine pairing</th></tr>
+            <tr><th scope="col">Course</th><th scope="col">Meal</th><th scope="col">Ingredients</th><th scope="col">Wine pairing</th><th scope="col">Description</th></tr>
           </thead>
           <tbody id="meal-rows"></tbody>
         </table>
@@ -82,10 +82,6 @@
           </div>
           <span class="pm-pill" data-role="status">Not reviewed</span>
         </header>
-        <div class="mp-actions">
-          <button type="button" class="pm-btn pm-btn--primary" data-role="draft"><svg class="pm-icon" aria-hidden="true"><use href="#pm-icon-sparkle"/></svg><span>Draft with AI</span></button>
-          <button type="button" class="pm-btn pm-btn--ghost" data-role="own">Write it myself</button>
-        </div>
         <div class="mp-alert" role="alert" data-role="alert" hidden></div>
         <div class="mp-review__block" data-role="block" hidden>
           <div class="mp-field">

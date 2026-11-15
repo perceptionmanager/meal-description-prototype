@@ -64,12 +64,22 @@ async function post(payload) {
   return j;
 }
 
-function busy(btn, on, label) {
+// Words shown in turn while the model works, so the wait reads as progress.
+const COOKING = ['Chopping…', 'Sautéing…', 'Simmering…', 'Seasoning…', 'Plating…'];
+const POURING = ['Uncorking…', 'Swirling…', 'Tasting…', 'Pouring…'];
+
+function busy(btn, on, labels) {
   btn.disabled = on;
   btn.setAttribute('aria-busy', String(on));
+  clearInterval(btn._busyTimer);
   if (on) {
+    const list = [].concat(labels);
     btn.dataset.html = btn.innerHTML;
-    btn.replaceChildren(el('span', { class: 'mp-spin', 'aria-hidden': 'true' }), el('span', { text: label }));
+    // The changing word is decoration; screen readers get one steady label.
+    const word = el('span', { 'aria-hidden': 'true', text: list[0] });
+    btn.replaceChildren(el('span', { class: 'mp-spin', 'aria-hidden': 'true' }), word, el('span', { class: 'mp-sr', text: 'Working' }));
+    let n = 0;
+    btn._busyTimer = setInterval(() => { n = (n + 1) % list.length; word.textContent = list[n]; }, 1100);
   } else if (btn.dataset.html) {
     btn.innerHTML = btn.dataset.html; // static markup from index.html, not user text
     delete btn.dataset.html;
@@ -133,7 +143,10 @@ function renderTable() {
       el('th', { scope: 'row', 'data-label': 'Course', text: slot.label }),
       el('td', { 'data-label': 'Meal' }, el('div', { class: 'mp-stack' }, sel, name)),
       el('td', { 'data-label': 'Ingredients' }, ing, el('p', { class: 'mp-hint', text: 'One per line' })),
-      el('td', { 'data-label': 'Wine pairing' }, el('span', { class: 'pm-tag', text: slot.pairing ? 'Menu owner chooses' : 'None for this course' })));
+      el('td', { 'data-label': 'Wine pairing' }, el('span', { class: 'pm-tag', text: slot.pairing ? 'Menu owner chooses' : 'None for this course' })),
+      el('td', { 'data-label': 'Description' }, el('div', { class: 'mp-rowacts' },
+        el('button', { type: 'button', class: 'pm-btn pm-btn--primary', 'data-slot': slot.id, 'data-act': 'draft', 'aria-label': `${slot.label}: draft with AI`, text: 'Draft with AI' }),
+        el('button', { type: 'button', class: 'pm-btn pm-btn--ghost', 'data-slot': slot.id, 'data-act': 'own', 'aria-label': `${slot.label}: write it myself`, text: 'Write it myself' }))));
   });
   $('meal-rows').replaceChildren(...rows);
 }
@@ -156,6 +169,17 @@ function bindTable() {
     paintMealNames();
     if (!p) body.querySelector(`[data-slot="${slot}"][data-field="name"]`)?.focus();
     else body.querySelector(`[data-slot="${slot}"][data-field="meal"]`)?.focus();
+  });
+  body.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const slot = btn.dataset.slot;
+    if (btn.dataset.act === 'draft') draft(slot, btn);
+    else if (validInputs(slot)) {
+      showDescription(slot, '', 'Written by reviewer');
+      invalidate(slot);
+      R[slot].desc.focus();
+    }
   });
   body.addEventListener('input', (e) => {
     const t = e.target;
@@ -181,7 +205,7 @@ function buildCards() {
     const node = tpl.content.firstElementChild.cloneNode(true);
     const q = (r) => node.querySelector(`[data-role="${r}"]`);
     const r = { root: node };
-    for (const k of ['title', 'mealname', 'status', 'draft', 'own', 'alert', 'block', 'desc-label', 'source', 'desc', 'checks', 'approve', 'regen', 'reject']) r[k] = q(k);
+    for (const k of ['title', 'mealname', 'status', 'alert', 'block', 'desc-label', 'source', 'desc', 'checks', 'approve', 'regen', 'reject']) r[k] = q(k);
     r.descLabel = r['desc-label'];
     node.setAttribute('aria-labelledby', `rt-${slot.id}`);
     r.title.id = `rt-${slot.id}`;
@@ -243,7 +267,7 @@ function validInputs(slot) {
 async function draft(slot, btn) {
   if (!validInputs(slot)) return;
   const m = S.meals[slot];
-  busy(btn, true, 'Drafting…');
+  busy(btn, true, COOKING);
   try {
     const j = await post({ task: 'description', name: m.name.trim(), ingredients: ingredients(slot) });
     m.aiDescription = j.description;
@@ -268,14 +292,7 @@ async function draft(slot, btn) {
 function bindCard(slot) {
   const r = R[slot];
   const m = () => S.meals[slot];
-  r.draft.addEventListener('click', (e) => draft(slot, e.currentTarget));
   r.regen.addEventListener('click', (e) => draft(slot, e.currentTarget));
-  r.own.addEventListener('click', () => {
-    if (!validInputs(slot)) return;
-    showDescription(slot, '', 'Written by reviewer');
-    invalidate(slot);
-    r.desc.focus();
-  });
   r.desc.addEventListener('input', (e) => {
     m().description = e.target.value;
     if (m().aiDescription) m().descSource = m().description.trim() === m().aiDescription ? 'AI drafted' : 'AI drafted, edited by reviewer';
@@ -285,7 +302,7 @@ function bindCard(slot) {
     resetDescription(slot);
     invalidate(slot);
     say('Draft rejected and discarded.');
-    r.draft.focus();
+    $('meal-rows').querySelector(`[data-slot="${slot}"][data-act="draft"]`)?.focus();
   });
   r.approve.addEventListener('click', () => {
     m().approved = { at: new Date(), source: m().descSource, text: m().description };
@@ -346,7 +363,7 @@ function showPair() { S.pair.shown = true; $('pair-block').hidden = false; updat
 
 async function suggest(btn) {
   const m = S.meals.main;
-  busy(btn, true, 'Thinking…');
+  busy(btn, true, POURING);
   try {
     const j = await post({ task: 'pairing', name: m.name.trim(), ingredients: ingredients('main'), description: m.approved.text });
     S.pair.ai = { wineId: j.wineId || 'none', reasons: j.reasons, note: j.note };

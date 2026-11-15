@@ -162,3 +162,8 @@ ul, ol { padding: 0; list-style: none; }
 
 /* ---- pairing step spacing ---- */
 #pair-block, #reasons-block { display: grid; gap: var(--pm-space-4); }
+
+/* Row actions in the meal table. A review card stays out of the way until it has a draft or a message. */
+.mp-rowacts { display: grid; gap: var(--pm-space-2); min-width: 11rem; }
+.mp-rowacts .pm-btn { width: 100%; justify-content: center; }
+.mp-review:not(:has([data-role="block"]:not([hidden]), [data-role="alert"]:not([hidden]))) { display: none; }
