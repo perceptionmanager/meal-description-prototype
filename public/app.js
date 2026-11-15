@@ -140,10 +140,9 @@ function renderTable() {
     const ing = el('textarea', { class: 'mp-input mp-textarea', rows: '5', maxlength: '600', 'data-slot': slot.id, 'data-field': 'ingredients', 'aria-label': `${slot.label}: ingredients, one per line` });
     ing.value = m.ingredientsText;
     return el('tr', { 'data-slot': slot.id },
-      el('th', { scope: 'row', 'data-label': 'Course', text: slot.label }),
+      el('th', { scope: 'row', 'data-label': 'Course' }, el('div', { class: 'mp-stack' }, el('span', { text: slot.label }), el('span', { class: 'pm-tag mp-coursetag', text: slot.pairing ? 'Wine: menu owner chooses' : 'No wine pairing' }))),
       el('td', { 'data-label': 'Meal' }, el('div', { class: 'mp-stack' }, sel, name)),
       el('td', { 'data-label': 'Ingredients' }, ing, el('p', { class: 'mp-hint', text: 'One per line' })),
-      el('td', { 'data-label': 'Wine pairing' }, el('span', { class: 'pm-tag', text: slot.pairing ? 'Menu owner chooses' : 'None for this course' })),
       el('td', { 'data-label': 'Description' }, el('div', { class: 'mp-rowacts' },
         el('button', { type: 'button', class: 'pm-btn pm-btn--primary', 'data-slot': slot.id, 'data-act': 'draft', 'aria-label': `${slot.label}: draft with AI`, text: 'Draft with AI' }),
         el('button', { type: 'button', class: 'pm-btn pm-btn--ghost', 'data-slot': slot.id, 'data-act': 'own', 'aria-label': `${slot.label}: write it myself`, text: 'Write it myself' }))));

@@ -139,8 +139,8 @@ ul, ol { padding: 0; list-style: none; }
 .mp-table thead th { font-weight: var(--pm-font-weight-semibold); font-size: var(--pm-type-caption-size); letter-spacing: var(--pm-font-tracking-caps); text-transform: uppercase; color: var(--pm-color-text-tertiary); background: var(--pm-color-surface-tint); border-bottom: 1px solid var(--pm-color-border-subtle); }
 .mp-table tbody tr + tr > * { border-top: 1px solid var(--pm-color-border-subtle); }
 .mp-table tbody th { font-weight: var(--pm-font-weight-semibold); white-space: nowrap; color: var(--pm-color-text-primary); font-size: var(--pm-type-body-size); }
-.mp-table td:nth-child(2) { min-width: 15rem; }
-.mp-table td:nth-child(3) { min-width: 16rem; }
+.mp-table td:nth-child(2) { min-width: 12rem; }
+.mp-table td:nth-child(3) { min-width: 13rem; }
 .mp-stack { display: grid; gap: var(--pm-space-2); }
 .mp-table .mp-hint { margin-top: var(--pm-space-1); }
 @media (max-width: 760px) {
@@ -164,6 +164,7 @@ ul, ol { padding: 0; list-style: none; }
 #pair-block, #reasons-block { display: grid; gap: var(--pm-space-4); }
 
 /* Row actions in the meal table. A review card stays out of the way until it has a draft or a message. */
-.mp-rowacts { display: grid; gap: var(--pm-space-2); min-width: 11rem; }
+.mp-rowacts { display: grid; gap: var(--pm-space-2); min-width: 9.5rem; }
+.mp-coursetag { justify-self: start; font-weight: var(--pm-font-weight-regular, 400); white-space: nowrap; }
 .mp-rowacts .pm-btn { width: 100%; justify-content: center; }
 .mp-review:not(:has([data-role="block"]:not([hidden]), [data-role="alert"]:not([hidden]))) { display: none; }
