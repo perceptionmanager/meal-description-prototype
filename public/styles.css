@@ -2,29 +2,17 @@
    The form pieces (field, input, textarea, select, choice, alert, checks, progress) are not in the
    design system yet. They are written to be promoted as-is, so keep them free of prototype-only values. */
 
-*, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0;
-  background: var(--pm-color-surface-page);
-  color: var(--pm-color-text-primary);
-  font: var(--pm-type-body-weight) var(--pm-type-body-size)/var(--pm-type-body-line-height) var(--pm-type-body-family);
-}
 [hidden] { display: none !important; }
-:focus-visible { outline: var(--pm-focus-ring-width) solid var(--pm-color-focus-ring); outline-offset: var(--pm-focus-ring-offset); }
-h1, h2, h3, p, ul, ol { margin: 0; }
-ul, ol { padding: 0; list-style: none; }
+.mp-tool h2, .mp-tool h3, .mp-tool p, .mp-tool ul, .mp-tool ol { margin: 0; }
+.mp-tool ul, .mp-tool ol { padding: 0; list-style: none; }
 .mp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---- layout ---- */
-.mp-wrap { width: 100%; max-width: var(--pm-layout-content-max); margin: 0 auto; padding-inline: var(--pm-layout-gutter); }
-.mp-header { border-bottom: 1px solid var(--pm-color-border-subtle); background: var(--pm-color-surface-raised); }
-.mp-header__row { display: flex; align-items: center; justify-content: space-between; gap: var(--pm-space-4); padding-block: var(--pm-space-5); }
-.mp-eyebrow { font-size: var(--pm-type-caption-size); font-weight: var(--pm-type-caption-weight); letter-spacing: var(--pm-type-caption-tracking); text-transform: uppercase; color: var(--pm-color-text-accent); }
-.mp-title { font: var(--pm-type-heading-md-weight) var(--pm-type-heading-md-size)/var(--pm-type-heading-md-line-height) var(--pm-type-heading-md-family); }
-.mp-main { padding-block: var(--pm-space-8) var(--pm-space-12); display: grid; gap: var(--pm-space-6); outline: none; }
-.mp-lede { max-width: var(--pm-layout-measure); font-size: var(--pm-type-lead-size); line-height: var(--pm-type-lead-line-height); color: var(--pm-color-text-secondary); }
-.mp-footer { padding-block: var(--pm-space-6) var(--pm-space-10); border-top: 1px solid var(--pm-color-border-subtle); }
+.mp-main { outline: none; }
+.mp-tool { display: grid; gap: var(--pm-space-6); padding-bottom: var(--pm-space-12); }
+.mp-disclaimer { max-width: var(--pm-layout-measure); }
+/* a work surface should not move under the cursor */
+.mp-panel.pm-card:hover, .mp-panel.pm-card:active { transform: none; }
 .mp-small { font-size: var(--pm-type-small-size); line-height: var(--pm-type-small-line-height); }
 .mp-muted { color: var(--pm-color-text-tertiary); }
 

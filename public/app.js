@@ -473,19 +473,6 @@ function bindShell() {
     const n = Number(b.dataset.step);
     if (reachable(n)) setStep(n);
   }));
-  const theme = $('theme');
-  const paint = () => {
-    const light = document.documentElement.getAttribute('data-theme') === 'light';
-    theme.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
-    theme.querySelector('use').setAttribute('href', light ? '#pm-icon-moon' : '#pm-icon-sun');
-  };
-  theme.addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', next);
-    try { localStorage.setItem('mp-theme', next); } catch { /* storage can be blocked */ }
-    paint();
-  });
-  paint();
 }
 
 async function loadIcons() {

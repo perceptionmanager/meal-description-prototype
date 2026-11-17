@@ -48,7 +48,7 @@ Without Upstash, counts live in one serverless instance's memory. That slows cas
 
 ## Design system
 
-`public/ds/` holds vendored copies of the design system's `tokens.css`, `components.css` and `icons.svg`. Update them by copying from the design system's `dist/`; do not edit them here.
+The page uses the shared design system shell, the same as the other Lab tools: header with name and NN/g credential, still glows with the dot-and-dash backdrop, title build-up, theme switch (shared `pm-theme` key with the portfolio) and footer. `tokens.css`, `components.css`, `shell.css` and `shell.js` load from jsDelivr pinned to v0.8.0 (`517933f`); bump the commit to take updates. `public/ds/` holds `icons.svg` (copied from the design system's `dist/`) and the NN/g badge.
 Buttons, cards, pills, tags and icons come from the design system. These are local because the design system has no equivalent yet: text input, textarea, select (`.mp-input`, `.mp-textarea`, `.mp-select`), table (`.mp-table`), alert and note, check list (`.mp-checks`), details, and the step progress bar. They are local in `public/styles.css` and use only semantic tokens, so they can be promoted into the design system later.
 
 ## Deploy
