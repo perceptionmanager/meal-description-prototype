@@ -1,43 +1,65 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Menu copy review prototype</title>
+  <script>/* theme: set before first paint (saved choice, then the system setting); same key as the portfolio. Also hides the title until the design system draws it in (pm-title-pending). */(function(){var t;try{t=localStorage.getItem('pm-theme')}catch(e){}if(t!=='light'&&t!=='dark'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark'}document.documentElement.setAttribute('data-theme',t);if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){document.documentElement.classList.add('pm-title-pending')}})();</script>
+  <title>Menu Copy Review — Alex Grinyayev</title>
   <meta name="description" content="A prototype of a two-step human review for AI-written menu descriptions and wine pairings.">
   <meta name="robots" content="noindex">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Serif:wght@400;600&display=swap">
-  <link rel="stylesheet" href="ds/tokens.css">
-  <link rel="stylesheet" href="ds/components.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <!-- Shared perceptionmanager design system, pinned to a release (v0.8.1): bump the commit to take updates. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/perceptionmanager/design-system@0d4680d03b7467c3ce95dd2dcd8a0a3520136355/dist/tokens.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/perceptionmanager/design-system@0d4680d03b7467c3ce95dd2dcd8a0a3520136355/dist/components.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/perceptionmanager/design-system@0d4680d03b7467c3ce95dd2dcd8a0a3520136355/dist/shell.css">
   <link rel="stylesheet" href="styles.css">
-  <script>
-    try {
-      var saved = localStorage.getItem('mp-theme');
-      var light = saved ? saved === 'light' : window.matchMedia('(prefers-color-scheme: light)').matches;
-      document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
-    } catch (e) {}
-  </script>
 </head>
-<body>
-  <a class="pm-skip-link" href="#main">Skip to content</a>
+<body class="pg-menu-review">
 
-  <header class="mp-header">
-    <div class="mp-wrap mp-header__row">
-      <div>
-        <p class="mp-eyebrow">Prototype</p>
-        <h1 class="mp-title">Menu copy review</h1>
+<a class="pm-skip-link" href="#main">Skip to content</a>
+
+<div class="pm-page">
+
+  <!-- page shell from the design system (docs/shell.md): backdrop and the compact header (name, credential, Let's connect, theme switch) -->
+  <div class="pm-backdrop__grain"></div>
+  <div class="pm-backdrop__aura"></div>
+  <div class="pm-backdrop__noise"></div>
+  <div data-blob-group data-blob-role="coral" data-tx-range="90" data-ty-range="85" data-scale-min="0.55" data-scale-max="1.75" data-blur-min="30" data-blur-max="130" data-op-min="0.14" data-op-max="0.62" data-dur-min="4" data-dur-max="8">
+    <div class="pm-backdrop__clear" data-blob-target style="width:480px;height:480px;top:-180px;left:-170px;transform:translate(0,0) scale(1);opacity:.35"></div>
+    <div class="pm-backdrop__blob pm-backdrop__blob--coral" data-blob-target style="width:320px;height:320px;top:-100px;left:-90px;transform:translate(0,0) scale(1);filter:blur(70px);opacity:.35"></div>
+  </div>
+  <div class="pm-backdrop__group--desktop" data-blob-group data-blob-role="cyan" data-tx-range="90" data-ty-range="85" data-scale-min="0.55" data-scale-max="1.7" data-blur-min="30" data-blur-max="130" data-op-min="0.14" data-op-max="0.6" data-dur-min="4.5" data-dur-max="8.5">
+    <div class="pm-backdrop__clear" data-blob-target style="width:630px;height:630px;top:35px;right:-265px;transform:translate(0,0) scale(1);opacity:.35"></div>
+    <div class="pm-backdrop__blob pm-backdrop__blob--cyan" data-blob-target style="width:420px;height:420px;top:140px;right:-160px;transform:translate(0,0) scale(1);filter:blur(70px);opacity:.35"></div>
+  </div>
+
+  <header class="pm-site-header">
+    <div class="pm-site-header__inner">
+      <div class="pm-site-header__brand">
+        <span class="pm-site-header__name">Alex Grinyayev</span>
+        <a class="pm-site-header__cred" href="https://www.nngroup.com/ux-certification/people/" target="_blank" rel="noopener">
+          <img class="pm-site-header__badge" src="ds/nng-ux-certified-badge.webp" alt="NN/g UX Certified" width="56" height="53" draggable="false">
+          <span class="pm-site-header__badge-label"><span class="pm-site-header__badge-prefix">NNg Certified - </span>ID 1064178</span>
+        </a>
       </div>
-      <button type="button" class="pm-btn pm-btn--ghost pm-btn--icon-only" id="theme" aria-label="Switch to light theme">
-        <svg class="pm-icon" aria-hidden="true"><use href="#pm-icon-sun"/></svg>
-      </button>
+      <a class="pm-btn pm-btn--ghost pm-site-header__cta" data-magnetic href="mailto:perceptionmanager@gmail.com"><svg class="pm-icon" aria-hidden="true" focusable="false"><use href="ds/icons.svg#pm-icon-mail"/></svg><span class="pm-site-header__cta-label">Let's connect</span></a>
+      <button class="pm-btn pm-btn--ghost pm-btn--icon-only pm-theme-toggle" type="button" aria-label="Switch to light theme" data-theme-toggle><svg class="pm-icon pm-theme-toggle__sun" aria-hidden="true" focusable="false"><use href="ds/icons.svg#pm-icon-sun"/></svg><svg class="pm-icon pm-theme-toggle__moon" aria-hidden="true" focusable="false"><use href="ds/icons.svg#pm-icon-moon"/></svg></button>
     </div>
+    <div class="pm-site-header__rule"></div>
+    <div class="pm-site-header__progress" data-scroll-progress></div>
   </header>
+  <div style="height:var(--pm-layout-nav-height)"></div>
 
-  <main id="main" class="mp-wrap mp-main" tabindex="-1">
-    <p class="mp-lede">AI drafts the description and the wine pairing. A person approves each one before anything reaches a menu. The meals and wines are fictional.</p>
+  <main id="main" class="mp-main" tabindex="-1">
+    <section class="pm-hero pm-wrap">
+      <p class="pm-pill pm-fade-in" style="animation-delay:.05s"><span class="pm-pill__dot" aria-hidden="true"></span>Prototype · Menu copy review</p>
+      <h1>A person approves every line before it reaches a menu.</h1>
+      <p class="pm-hero__sub pm-fade-in" style="animation-delay:.25s">AI drafts the meal descriptions and the wine pairing. A menu reviewer approves the descriptions, then a menu owner approves the pairing. The meals, wines and people are fictional.</p>
+    </section>
 
+    <div class="pm-wrap mp-tool">
     <ol class="mp-progress" id="progress" aria-label="Review steps">
       <li><button type="button" class="mp-progress__item" data-step="1"><span class="mp-progress__num" aria-hidden="true">1</span><span><span class="mp-progress__name">Review descriptions</span><span class="mp-progress__role">Menu reviewer</span></span></button></li>
       <li><button type="button" class="mp-progress__item" data-step="2"><span class="mp-progress__num" aria-hidden="true">2</span><span><span class="mp-progress__name">Choose pairing</span><span class="mp-progress__role">Menu owner</span></span></button></li>
@@ -173,12 +195,15 @@
         <button type="button" class="pm-btn pm-btn--tertiary" id="back-2">Back to pairing</button>
       </div>
     </section>
+      <p class="mp-small mp-muted mp-disclaimer">A portfolio prototype. Not connected to any airline or menu system. The checks catch common problems and do not replace the reviewer.</p>
+    </div>
   </main>
 
-  <footer class="mp-wrap mp-footer">
-    <p class="mp-small mp-muted">A portfolio prototype. Not connected to any airline or menu system. The checks catch common problems and do not replace the reviewer.</p>
-  </footer>
+  <footer class="pm-site-footer" data-pm-footer></footer>
 
-  <script type="module" src="app.js"></script>
+</div>
+
+<script src="https://cdn.jsdelivr.net/gh/perceptionmanager/design-system@0d4680d03b7467c3ce95dd2dcd8a0a3520136355/dist/shell.js" defer></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
